@@ -4,6 +4,7 @@
 
 import { CSSProperties, ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
+import { toCanvas, toPng } from "html-to-image";
 
 type BlockType =
   | "section"
@@ -346,20 +347,6 @@ function newBlock(type: BlockType, categoryId: string): Block {
   }
 }
 
-function getDocumentStyles() {
-  return Array.from(document.styleSheets)
-    .map((sheet) => {
-      try {
-        return Array.from(sheet.cssRules)
-          .map((rule) => rule.cssText)
-          .join("\n");
-      } catch {
-        return "";
-      }
-    })
-    .join("\n");
-}
-
 async function imageSourceToDataUrl(src: string) {
   if (!src || src.startsWith("data:") || src.startsWith("blob:")) {
     return src;
@@ -385,106 +372,95 @@ async function imageSourceToDataUrl(src: string) {
   }
 }
 
-async function prepareCloneForExport(node: HTMLElement, width: number, minHeight: number) {
-  const clone = node.cloneNode(true) as HTMLElement;
-  clone.style.width = `${width}px`;
-  clone.style.minHeight = `${minHeight}px`;
-  clone.style.margin = "0";
-  clone.querySelectorAll(".selected-for-edit").forEach((item) => {
-    item.classList.remove("selected-for-edit");
-  });
-  clone.querySelectorAll(".image-drop-zone").forEach((item) => {
-    item.classList.add("exporting");
-  });
-
-  const imageElements = Array.from(clone.querySelectorAll("img"));
-
-  await Promise.all(
-    imageElements.map(async (image) => {
-      const dataUrl = await imageSourceToDataUrl(image.currentSrc || image.src);
-
-      if (dataUrl) {
-        image.removeAttribute("crossorigin");
-        image.src = dataUrl;
-      } else {
-        const fallback = document.createElement("div");
-        fallback.className = "image-drop-zone image-placeholder export-image-fallback";
-        fallback.innerHTML = "<span>Görsel export edilemedi</span>";
-        fallback.setAttribute("style", image.getAttribute("style") ?? "");
-        image.replaceWith(fallback);
-      }
-    }),
-  );
-
-  return clone;
-}
-
-async function downloadSvgMarkupAsPng(markup: string, width: number, height: number, filename: string) {
-  const svgBlob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
-  const image = new Image();
-  image.decoding = "sync";
-
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("PNG oluşturulamadı."));
-    image.src = url;
-  });
-
-  const scale = Math.max(2, window.devicePixelRatio || 1);
-  const canvas = document.createElement("canvas");
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    URL.revokeObjectURL(url);
-    throw new Error("Canvas desteklenmiyor.");
-  }
-
-  context.scale(scale, scale);
-  context.drawImage(image, 0, 0);
-  URL.revokeObjectURL(url);
-
-  let pngUrl = "";
-
-  try {
-    pngUrl = canvas.toDataURL("image/png");
-  } catch {
-    throw new Error(
-      "PNG export edilemedi. Görsellerden biri CORS izni vermiyor; dosya yükleyerek veya izinli/data URL görsel kullanarak tekrar deneyin.",
-    );
-  }
-
+function triggerDownload(dataUrl: string, filename: string) {
   const link = document.createElement("a");
-  link.href = pngUrl;
+  link.href = dataUrl;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
 }
 
-async function downloadNodeAsPng(node: HTMLElement, filename: string) {
+type ImageRestoreEntry =
+  | { kind: "src"; el: HTMLImageElement; originalSrc: string; hadCrossOrigin: boolean; crossOrigin: string | null }
+  | { kind: "replaced"; original: HTMLImageElement; fallback: HTMLElement };
+
+async function withExportPrep<T>(node: HTMLElement, work: () => Promise<T>): Promise<T> {
+  const pageHost = (node.classList.contains("page") ? node : node.closest(".page")) as HTMLElement | null;
+  const pageHadGuides = pageHost?.classList.contains("show-guides") ?? false;
+  if (pageHadGuides) pageHost?.classList.remove("show-guides");
+
+  document.body.classList.add("is-exporting");
+
+  const selectionEls = Array.from(node.querySelectorAll(".selected-for-edit"));
+  selectionEls.forEach((el) => el.classList.remove("selected-for-edit"));
+
+  const dropZones = Array.from(node.querySelectorAll(".image-drop-zone"));
+  dropZones.forEach((el) => el.classList.add("exporting"));
+
+  const images = Array.from(node.querySelectorAll("img"));
+  const restore: ImageRestoreEntry[] = [];
+
+  await Promise.all(
+    images.map(async (img) => {
+      const originalSrc = img.src;
+      const dataUrl = await imageSourceToDataUrl(img.currentSrc || img.src);
+      if (dataUrl) {
+        restore.push({
+          kind: "src",
+          el: img,
+          originalSrc,
+          hadCrossOrigin: img.hasAttribute("crossorigin"),
+          crossOrigin: img.getAttribute("crossorigin"),
+        });
+        img.removeAttribute("crossorigin");
+        img.src = dataUrl;
+      } else {
+        const fallback = document.createElement("div");
+        fallback.className = "image-drop-zone image-placeholder export-image-fallback exporting";
+        fallback.innerHTML = "<span>Görsel export edilemedi</span>";
+        fallback.setAttribute("style", img.getAttribute("style") ?? "");
+        img.replaceWith(fallback);
+        restore.push({ kind: "replaced", original: img, fallback });
+      }
+    }),
+  );
+
   await document.fonts.ready;
 
-  const rect = node.getBoundingClientRect();
-  const width = Math.max(1, Math.ceil(rect.width));
-  const height = Math.max(1, Math.ceil(rect.height));
-  const clone = await prepareCloneForExport(node, width, height);
+  try {
+    return await work();
+  } finally {
+    for (const entry of restore) {
+      if (entry.kind === "src") {
+        entry.el.src = entry.originalSrc;
+        if (entry.hadCrossOrigin && entry.crossOrigin !== null) {
+          entry.el.setAttribute("crossorigin", entry.crossOrigin);
+        }
+      } else {
+        entry.fallback.replaceWith(entry.original);
+      }
+    }
+    dropZones.forEach((el) => el.classList.remove("exporting"));
+    selectionEls.forEach((el) => el.classList.add("selected-for-edit"));
+    if (pageHadGuides) pageHost?.classList.add("show-guides");
+    document.body.classList.remove("is-exporting");
+  }
+}
 
-  const styles = getDocumentStyles();
+function exportPixelRatio() {
+  return Math.max(2, window.devicePixelRatio || 1);
+}
 
-  const markup = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-      <foreignObject width="100%" height="100%">
-        <div class="export-frame" xmlns="http://www.w3.org/1999/xhtml">
-          <style>${styles}</style>
-          ${clone.outerHTML}
-        </div>
-      </foreignObject>
-    </svg>`;
-
-  await downloadSvgMarkupAsPng(markup, width, height, filename);
+async function downloadNodeAsPng(node: HTMLElement, filename: string) {
+  await withExportPrep(node, async () => {
+    const dataUrl = await toPng(node, {
+      pixelRatio: exportPixelRatio(),
+      cacheBust: true,
+      backgroundColor: undefined,
+    });
+    triggerDownload(dataUrl, filename);
+  });
 }
 
 async function downloadNodeSectionsAsPng(
@@ -492,39 +468,39 @@ async function downloadNodeSectionsAsPng(
   filenameBase: string,
   sectionHeight: number,
 ) {
-  await document.fonts.ready;
+  await withExportPrep(node, async () => {
+    const pixelRatio = exportPixelRatio();
+    const fullCanvas = await toCanvas(node, { pixelRatio, cacheBust: true });
+    const width = Math.max(1, Math.ceil(node.getBoundingClientRect().width));
+    const totalHeight = Math.max(1, Math.ceil(node.scrollHeight));
+    const safeSectionHeight = Math.max(200, sectionHeight);
+    const sectionCount = Math.ceil(totalHeight / safeSectionHeight);
 
-  const rect = node.getBoundingClientRect();
-  const width = Math.max(1, Math.ceil(rect.width));
-  const totalHeight = Math.max(1, Math.ceil(node.scrollHeight));
-  const safeSectionHeight = Math.max(200, sectionHeight);
-  const sectionCount = Math.ceil(totalHeight / safeSectionHeight);
-  const styles = getDocumentStyles();
-
-  for (let index = 0; index < sectionCount; index += 1) {
-    const offset = index * safeSectionHeight;
-    const height = Math.min(safeSectionHeight, totalHeight - offset);
-    const clone = await prepareCloneForExport(node, width, totalHeight);
-
-    const markup = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-        <foreignObject width="100%" height="100%">
-          <div class="export-frame export-slice" xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;">
-            <style>${styles}</style>
-            <div style="transform:translateY(-${offset}px);transform-origin:top left;">
-              ${clone.outerHTML}
-            </div>
-          </div>
-        </foreignObject>
-      </svg>`;
-
-    await downloadSvgMarkupAsPng(
-      markup,
-      width,
-      height,
-      `${filenameBase}-bolum-${String(index + 1).padStart(2, "0")}.png`,
-    );
-  }
+    for (let index = 0; index < sectionCount; index += 1) {
+      const offset = index * safeSectionHeight;
+      const height = Math.min(safeSectionHeight, totalHeight - offset);
+      const slice = document.createElement("canvas");
+      slice.width = Math.round(width * pixelRatio);
+      slice.height = Math.round(height * pixelRatio);
+      const ctx = slice.getContext("2d");
+      if (!ctx) throw new Error("Canvas desteklenmiyor.");
+      ctx.drawImage(
+        fullCanvas,
+        0,
+        Math.round(offset * pixelRatio),
+        Math.round(width * pixelRatio),
+        Math.round(height * pixelRatio),
+        0,
+        0,
+        Math.round(width * pixelRatio),
+        Math.round(height * pixelRatio),
+      );
+      triggerDownload(
+        slice.toDataURL("image/png"),
+        `${filenameBase}-bolum-${String(index + 1).padStart(2, "0")}.png`,
+      );
+    }
+  });
 }
 
 export default function Home() {

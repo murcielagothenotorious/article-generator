@@ -462,11 +462,11 @@ button {
   z-index: 50;
 }
 
-.export-frame .editable-block {
+body.is-exporting .editable-block {
   outline: none !important;
 }
 
-.export-frame .page::before {
+body.is-exporting .page::before {
   display: none !important;
 }
 
@@ -652,7 +652,7 @@ button {
   opacity: 1;
 }
 
-.export-frame .image-drop-zone::after,
+body.is-exporting .image-drop-zone::after,
 .image-drop-zone.exporting::after {
   display: none;
 }
@@ -1035,7 +1035,7 @@ button {
   width: 8px !important;
 }
 
-.export-frame .photo-resize-handle {
+body.is-exporting .photo-resize-handle {
   display: none !important;
 }
 
