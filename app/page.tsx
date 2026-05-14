@@ -18,7 +18,9 @@ type BlockType =
   | "orgchart"
   | "photoquote"
   | "authorcard"
-  | "custom";
+  | "custom"
+  | "photostory"
+  | "twocolumn";
 
 type Block = {
   id: string;
@@ -57,12 +59,16 @@ type ArticleSettings = {
   headerFont: string;
   headerWeight: string;
   sansFont: string;
+  colorScheme: string;
 };
+
+type FixedField = { key: string; value: string };
 
 type Category = {
   id: string;
   name: string;
   navLabel: string;
+  fixedFields: FixedField[];
 };
 
 const blockCatalog: Array<{ type: BlockType; label: string; region: string }> = [
@@ -73,6 +79,8 @@ const blockCatalog: Array<{ type: BlockType; label: string; region: string }> = 
   { type: "byline", label: "Yazar satırı", region: "Sayfa" },
   { type: "paragraph", label: "Paragraf", region: "Gövde" },
   { type: "image", label: "Fotoğraf", region: "Gövde" },
+  { type: "photostory", label: "Foto hikaye (2 foto)", region: "Gövde" },
+  { type: "twocolumn", label: "İki sütun", region: "Gövde" },
   { type: "rule", label: "Ayraç", region: "Gövde" },
   { type: "orgchart", label: "Organizasyon şeması", region: "Gövde" },
   { type: "photoquote", label: "Fotoğraf + alıntı", region: "Gövde" },
@@ -100,6 +108,7 @@ const defaultSettings: ArticleSettings = {
   headerFont: "Barlow",
   headerWeight: "700",
   sansFont: "Libre Franklin",
+  colorScheme: "dark",
 };
 
 const defaultOrgNodes: OrgNode[] = [
@@ -112,8 +121,8 @@ const defaultOrgNodes: OrgNode[] = [
 ];
 
 const defaultCategories: Category[] = [
-  { id: "category-1", name: "Kategori 1", navLabel: "Kategori 1" },
-  { id: "category-2", name: "Kategori 2", navLabel: "Kategori 2" },
+  { id: "category-1", name: "Kategori 1", navLabel: "Kategori 1", fixedFields: [] },
+  { id: "category-2", name: "Kategori 2", navLabel: "Kategori 2", fixedFields: [] },
 ];
 
 const initialBlocks: Block[] = [];
@@ -189,6 +198,9 @@ const managedFieldKeys = new Set([
   "photoWidth",
   "imageHeight",
   "avatarSize",
+  "mainPhotoWidth",
+  "secondaryPhotoWidth",
+  "secondaryPhotoHeight",
 ]);
 
 function makeId(type: BlockType) {
@@ -208,6 +220,7 @@ function newCategory(): Category {
     id,
     name: "Yeni Kategori",
     navLabel: "Yeni Kategori",
+    fixedFields: [],
   };
 }
 
@@ -342,6 +355,38 @@ function newBlock(type: BlockType, categoryId: string): Block {
         fields: {
           title: "Özel kutu",
           text: "Bu alan haber içinde serbest düzenlenebilir bir div olarak kullanılır.",
+        },
+      };
+    case "photostory":
+      return {
+        ...base,
+        label: "Yeni foto hikaye",
+        fields: {
+          imageUrl: "",
+          alt: "",
+          caption: "Fotoğraf açıklaması.",
+          credit: "Fotoğraf kaynağı",
+          mainPhotoWidth: "42",
+          imageHeight: "340",
+          text: "Haber metni buraya gelecek.",
+          imageUrl2: "",
+          alt2: "",
+          caption2: "İkinci fotoğraf açıklaması.",
+          credit2: "Fotoğraf kaynağı",
+          secondaryPhotoWidth: "200",
+          secondaryPhotoHeight: "150",
+        },
+      };
+    case "twocolumn":
+      return {
+        ...base,
+        label: "Yeni iki sütun",
+        fields: {
+          title: "Başlık",
+          deck: "Kısa açıklama veya spot metin.",
+          leftText: "Sol sütun metni.",
+          rightText: "Sağ sütun metni.",
+          readMore: "DAHA FAZLA OKU",
         },
       };
   }
@@ -503,13 +548,36 @@ async function downloadNodeSectionsAsPng(
   });
 }
 
+const STORAGE_KEY = "ag-state";
+
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const blockRefs = useRef(new Map<string, HTMLElement>());
-  const [settings, setSettings] = useState(defaultSettings);
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
-  const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
-  const [activeCategoryId, setActiveCategoryId] = useState(defaultCategories[0].id);
+  const [settings, setSettings] = useState<ArticleSettings>(() => {
+    const s = loadPersistedState();
+    return s?.settings ? { ...defaultSettings, ...s.settings } : defaultSettings;
+  });
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const s = loadPersistedState();
+    return s?.categories ?? defaultCategories;
+  });
+  const [blocks, setBlocks] = useState<Block[]>(() => {
+    const s = loadPersistedState();
+    return s?.blocks ?? initialBlocks;
+  });
+  const [activeCategoryId, setActiveCategoryId] = useState<string>(() => {
+    const s = loadPersistedState();
+    return s?.activeCategoryId ?? defaultCategories[0].id;
+  });
   const [selectedId, setSelectedId] = useState("");
   const [exportStatus, setExportStatus] = useState("");
   const [draggedBlockId, setDraggedBlockId] = useState("");
@@ -677,18 +745,11 @@ export default function Home() {
     };
   }
 
-  function readImageFile(blockId: string, event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    applyImageFile(blockId, file);
-  }
-
-  function applyImageFile(blockId: string, file: File) {
+  function applyImageFile(blockId: string, file: File, fieldKey = "imageUrl") {
     if (!file.type.startsWith("image/")) return;
 
     const reader = new FileReader();
-    reader.onload = () => updateField(blockId, "imageUrl", String(reader.result ?? ""));
+    reader.onload = () => updateField(blockId, fieldKey, String(reader.result ?? ""));
     reader.readAsDataURL(file);
   }
 
@@ -717,6 +778,25 @@ export default function Home() {
     setCategories((current) => current.filter((category) => category.id !== activeCategoryId));
     setBlocks((current) => current.filter((block) => block.categoryId !== activeCategoryId));
     setActiveCategoryId(nextCategory?.id ?? "");
+    setSelectedId("");
+  }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ settings, categories, blocks, activeCategoryId }),
+      );
+    } catch {}
+  }, [settings, categories, blocks, activeCategoryId]);
+
+  function resetAll() {
+    if (!window.confirm("Tüm içerik ve ayarlar sıfırlanacak. Emin misiniz?")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    setSettings(defaultSettings);
+    setCategories(defaultCategories);
+    setBlocks(initialBlocks);
+    setActiveCategoryId(defaultCategories[0].id);
     setSelectedId("");
   }
 
@@ -802,6 +882,61 @@ export default function Home() {
                   updateCategory(activeCategory.id, { name, navLabel: name })
                 }
               />
+              <div className="fixed-fields-editor">
+                <div className="fixed-fields-header">
+                  <span>Sabit alanlar</span>
+                  <button
+                    onClick={() =>
+                      updateCategory(activeCategory.id, {
+                        fixedFields: [
+                          ...(activeCategory.fixedFields ?? []),
+                          { key: "Alan adı", value: "" },
+                        ],
+                      })
+                    }
+                    type="button"
+                  >
+                    + Alan ekle
+                  </button>
+                </div>
+                {(activeCategory.fixedFields ?? []).map((field, index) => (
+                  <div className="fixed-field-row" key={index}>
+                    <input
+                      aria-label="Alan adı"
+                      placeholder="Alan adı"
+                      value={field.key}
+                      onChange={(e) => {
+                        const updated = activeCategory.fixedFields.map((f, i) =>
+                          i === index ? { ...f, key: e.target.value } : f,
+                        );
+                        updateCategory(activeCategory.id, { fixedFields: updated });
+                      }}
+                    />
+                    <input
+                      aria-label="Değer"
+                      placeholder="Değer"
+                      value={field.value}
+                      onChange={(e) => {
+                        const updated = activeCategory.fixedFields.map((f, i) =>
+                          i === index ? { ...f, value: e.target.value } : f,
+                        );
+                        updateCategory(activeCategory.id, { fixedFields: updated });
+                      }}
+                    />
+                    <button
+                      aria-label="Alanı sil"
+                      className="fixed-field-remove"
+                      onClick={() => {
+                        const updated = activeCategory.fixedFields.filter((_, i) => i !== index);
+                        updateCategory(activeCategory.id, { fixedFields: updated });
+                      }}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
               <button
                 className="danger-lite"
                 disabled={categories.length <= 1}
@@ -927,6 +1062,12 @@ export default function Home() {
             value={settings.showGuides}
             onChange={(value) => setSettings({ ...settings, showGuides: value })}
           />
+          <SelectInput
+            label="Renk teması"
+            options={["dark", "monochrome"]}
+            value={settings.colorScheme}
+            onChange={(value) => setSettings({ ...settings, colorScheme: value })}
+          />
           <TextInput
             label="PNG bölüm yüksekliği"
             value={settings.exportSectionHeight}
@@ -1005,7 +1146,10 @@ export default function Home() {
             }
             onUpdate={(patch) => updateBlock(selectedBlock.id, patch)}
             onUpdateField={(key, value) => updateField(selectedBlock.id, key, value)}
-            onUploadImage={(event) => readImageFile(selectedBlock.id, event)}
+            onUploadImageToField={(fieldKey, event) => {
+              const file = event.target.files?.[0];
+              if (file) applyImageFile(selectedBlock.id, file, fieldKey);
+            }}
           />
         ) : null}
 
@@ -1021,12 +1165,15 @@ export default function Home() {
             <span>Delete</span><span>Blok sil</span>
           </div>
           <p>{exportStatus || "Seçili blok üstünden hızlı aksiyonları veya kısayolları kullan."}</p>
+          <button className="reset-action" onClick={resetAll} type="button">
+            Tümünü sıfırla
+          </button>
         </section>
       </aside>
 
       <section className="preview-stage">
         <div
-          className={classNames("page", settings.showGuides === "true" && "show-guides")}
+          className={classNames("page", settings.showGuides === "true" && "show-guides", `theme-${settings.colorScheme}`)}
           ref={pageRef}
           style={pageStyle}
         >
@@ -1037,6 +1184,10 @@ export default function Home() {
             categories={categories}
             onSelectCategory={selectCategory}
           />
+
+          {activeCategory && (activeCategory.fixedFields ?? []).length > 0 ? (
+            <CategoryFixedFields category={activeCategory} />
+          ) : null}
 
           {activeBlocks.length > 0 ? (
             <div className="page-flow">
@@ -1130,12 +1281,27 @@ function NavBar({
   );
 }
 
+function CategoryFixedFields({ category }: { category: Category }) {
+  const fields = category.fixedFields ?? [];
+  if (fields.length === 0) return null;
+  return (
+    <div className="category-fixed-fields">
+      {fields.map((field, index) => (
+        <div className="cff-row" key={index}>
+          <span className="cff-key">{field.key}</span>
+          <span className="cff-value">{field.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PageFooter({ masthead }: { masthead: string }) {
   return (
     <footer className="page-footer" aria-label="Sayfa alt bilgisi">
-      <span className="continued">Devamı sonraki sayfada</span>
-      <span>{masthead}</span>
-      <span className="page-num">A1</span>
+      <span className="continued"></span>
+      <span></span>
+      <span className="page-num"></span>
     </footer>
   );
 }
@@ -1151,7 +1317,7 @@ function RenderedBlock({
 }: {
   block: Block;
   isSelected: boolean;
-  onImageFile: (blockId: string, file: File) => void;
+  onImageFile: (blockId: string, file: File, fieldKey?: string) => void;
   onSelect: () => void;
   onUpdateField: (id: string, key: string, value: string) => void;
   registerBlock: (id: string) => (node: HTMLElement | null) => void;
@@ -1443,6 +1609,68 @@ function RenderedBlock({
           <div className="custom-news-text">{block.fields.text}</div>
         </div>
       );
+    case "photostory":
+      return (
+        <div {...rootProps} className={classNames(frameClass, "photostory-block", block.className)}>
+          <div
+            className="photostory-main"
+            style={{ width: `${Number(block.fields.mainPhotoWidth) || 42}%` }}
+          >
+            <ArticleImage
+              alt={block.fields.alt}
+              onFile={(file) => onImageFile(block.id, file, "imageUrl")}
+              src={block.fields.imageUrl}
+              style={{ height: `${Number(block.fields.imageHeight) || 340}px` }}
+              variant="photo"
+            />
+            <div className="photostory-main-caption">
+              {block.fields.caption}
+              <span>{block.fields.credit}</span>
+            </div>
+          </div>
+          <div className="photostory-content">
+            <figure
+              className="photostory-secondary"
+              style={{ width: `${Number(block.fields.secondaryPhotoWidth) || 200}px` }}
+            >
+              <ArticleImage
+                alt={block.fields.alt2}
+                onFile={(file) => onImageFile(block.id, file, "imageUrl2")}
+                src={block.fields.imageUrl2}
+                style={{ height: `${Number(block.fields.secondaryPhotoHeight) || 150}px` }}
+                variant="photo"
+              />
+              <figcaption className="photostory-secondary-caption">
+                {block.fields.caption2}
+                <span>{block.fields.credit2}</span>
+              </figcaption>
+            </figure>
+            <p className="photostory-text">{block.fields.text}</p>
+          </div>
+        </div>
+      );
+    case "twocolumn":
+      return (
+        <div {...rootProps} className={classNames(frameClass, "twocolumn-block", block.className)}>
+          {block.fields.title ? (
+            <h2 className="twocolumn-title">{block.fields.title}</h2>
+          ) : null}
+          {block.fields.deck ? (
+            <p className="twocolumn-deck">{block.fields.deck}</p>
+          ) : null}
+          <div className="twocolumn-grid">
+            <div className="twocolumn-col">
+              <p>{block.fields.leftText}</p>
+            </div>
+            <div className="twocolumn-col">
+              <p>{block.fields.rightText}</p>
+            </div>
+          </div>
+          {block.fields.readMore ? (
+            <div className="twocolumn-readmore">{block.fields.readMore}</div>
+          ) : null}
+        </div>
+      );
   }
 }
 
@@ -1623,7 +1851,7 @@ function BlockEditor({
   onToggleHidden,
   onUpdate,
   onUpdateField,
-  onUploadImage,
+  onUploadImageToField,
 }: {
   block: Block;
   onDuplicate: () => void;
@@ -1634,7 +1862,7 @@ function BlockEditor({
   onToggleHidden: () => void;
   onUpdate: (patch: Partial<Block>) => void;
   onUpdateField: (key: string, value: string) => void;
-  onUploadImage: (event: ChangeEvent<HTMLInputElement>) => void;
+  onUploadImageToField: (fieldKey: string, event: ChangeEvent<HTMLInputElement>) => void;
 }) {
   const fieldKeys = Object.keys(block.fields).filter((field) => !managedFieldKeys.has(field));
 
@@ -1756,7 +1984,14 @@ function BlockEditor({
       {"imageUrl" in block.fields ? (
         <label className="file-control">
           <span>Görsel yükle</span>
-          <input accept="image/*" onChange={onUploadImage} type="file" />
+          <input accept="image/*" onChange={(e) => onUploadImageToField("imageUrl", e)} type="file" />
+        </label>
+      ) : null}
+
+      {"imageUrl2" in block.fields ? (
+        <label className="file-control">
+          <span>İkinci görsel yükle</span>
+          <input accept="image/*" onChange={(e) => onUploadImageToField("imageUrl2", e)} type="file" />
         </label>
       ) : null}
 
@@ -1931,6 +2166,31 @@ function BlockEditor({
             label="Foto yüksekliği"
             value={block.fields.imageHeight}
             onChange={(value) => onUpdateField("imageHeight", value.replace(/[^\d]/g, ""))}
+          />
+        </div>
+      ) : null}
+
+      {block.type === "photostory" ? (
+        <div className="style-grid">
+          <TextInput
+            label="Ana foto genişlik %"
+            value={block.fields.mainPhotoWidth}
+            onChange={(value) => onUpdateField("mainPhotoWidth", value.replace(/[^\d]/g, ""))}
+          />
+          <TextInput
+            label="Ana foto yükseklik"
+            value={block.fields.imageHeight}
+            onChange={(value) => onUpdateField("imageHeight", value.replace(/[^\d]/g, ""))}
+          />
+          <TextInput
+            label="2. foto genişlik px"
+            value={block.fields.secondaryPhotoWidth}
+            onChange={(value) => onUpdateField("secondaryPhotoWidth", value.replace(/[^\d]/g, ""))}
+          />
+          <TextInput
+            label="2. foto yükseklik"
+            value={block.fields.secondaryPhotoHeight}
+            onChange={(value) => onUpdateField("secondaryPhotoHeight", value.replace(/[^\d]/g, ""))}
           />
         </div>
       ) : null}
