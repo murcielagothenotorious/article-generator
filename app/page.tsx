@@ -135,6 +135,7 @@ const fontStacks: Record<string, string> = {
   "Arno Pro": "var(--font-arno-pro), Georgia, serif",
   "Arno Pro Caption": "var(--font-arno-pro-caption), Georgia, serif",
   "Arno Pro Display": "var(--font-arno-pro-display), Georgia, serif",
+  "Cloister Black": "var(--font-cloister-black), Georgia, serif",
   Georgia: "Georgia, 'Times New Roman', Times, serif",
   Arial: "Arial, Helvetica, sans-serif",
   System: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
