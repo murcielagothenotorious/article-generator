@@ -1017,6 +1017,11 @@ p.editable-text {
   outline-offset: 2px;
 }
 
+.editable-text.sub-focused {
+  outline: 1px dashed rgba(201, 64, 64, 0.45);
+  outline-offset: 2px;
+}
+
 body.is-exporting .editable-text:focus {
   outline: none;
 }
@@ -1588,8 +1593,8 @@ body.is-exporting .photo-resize-handle {
 
 .twocolumn-title {
   color: var(--ink);
-  font-family: var(--font-heading);
-  font-size: 2.4rem;
+  font-family: inherit;
+  font-size: 2.4em;
   font-weight: 900;
   letter-spacing: -0.5px;
   line-height: 1.05;
@@ -1598,8 +1603,9 @@ body.is-exporting .photo-resize-handle {
 
 .twocolumn-deck {
   color: var(--ink-muted);
-  font-family: var(--font-sans);
-  font-size: 0.82rem;
+  font-family: inherit;
+  font-size: 1em;
+  font-style: italic;
   line-height: 1.45;
   margin: 0 0 14px;
 }
@@ -1614,13 +1620,15 @@ body.is-exporting .photo-resize-handle {
 
 .twocolumn-col p {
   color: var(--ink-soft);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-style: inherit;
   hyphens: auto;
-  line-height: 1.65;
+  line-height: inherit;
   margin: 0;
   overflow-wrap: anywhere;
-  text-align: justify;
+  text-align: inherit;
   white-space: pre-wrap;
 }
 

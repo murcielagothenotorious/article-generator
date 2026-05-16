@@ -1689,57 +1689,138 @@ function RenderedBlock({
       );
     case "twocolumn":
       return (
-        <div
-          {...rootProps}
-          className={classNames(frameClass, "twocolumn-block", "has-toolbar", block.className)}
-          style={buildTextStyle(block.fields, { font: "Lora", size: 13, lineHeight: 1.65 })}
-        >
-          {isSelected ? (
-            <BlockTextToolbar block={block} onUpdateField={onUpdateField} defaultFont="Lora" defaultSize={13} />
-          ) : null}
-          {block.fields.title ? (
-            <EditableHTML
-              tag="h1"
-              className="twocolumn-title"
-              html={block.fields.title}
-              onChange={(value) => onUpdateField(block.id, "title", value)}
-            />
-          ) : null}
-          {block.fields.deck ? (
-            <EditableHTML
-              tag="p"
-              className="twocolumn-deck"
-              html={block.fields.deck}
-              onChange={(value) => onUpdateField(block.id, "deck", value)}
-            />
-          ) : null}
-          <div className="twocolumn-grid">
-            <div className="twocolumn-col">
-              <EditableHTML
-                tag="p"
-                html={block.fields.leftText}
-                onChange={(value) => onUpdateField(block.id, "leftText", value)}
-              />
-            </div>
-            <div className="twocolumn-col">
-              <EditableHTML
-                tag="p"
-                html={block.fields.rightText}
-                onChange={(value) => onUpdateField(block.id, "rightText", value)}
-              />
-            </div>
-          </div>
-          {block.fields.readMore ? (
-            <EditableHTML
-              tag="div"
-              className="twocolumn-readmore"
-              html={block.fields.readMore}
-              onChange={(value) => onUpdateField(block.id, "readMore", value)}
-            />
-          ) : null}
-        </div>
+        <TwoColumnBlock
+          block={block}
+          isSelected={isSelected}
+          onUpdateField={onUpdateField}
+          rootProps={rootProps}
+          frameClass={frameClass}
+        />
       );
   }
+}
+
+function TwoColumnBlock({
+  block,
+  isSelected,
+  onUpdateField,
+  rootProps,
+  frameClass,
+}: {
+  block: Block;
+  isSelected: boolean;
+  onUpdateField: (id: string, key: string, value: string) => void;
+  rootProps: { onClick: (e: React.MouseEvent) => void; ref: (node: HTMLElement | null) => void };
+  frameClass: string;
+}) {
+  type SubKey = "title" | "deck" | "leftText" | "rightText" | "readMore";
+  const [focused, setFocused] = useState<SubKey>("leftText");
+
+  const subStyle = (key: SubKey): CSSProperties => {
+    const f = block.fields;
+    const fontSize = f[`${key}FontSize`] || f.fontSize;
+    const fontFamily = f[`${key}FontFamily`] || f.fontFamily;
+    const fontWeight = f[`${key}FontWeight`] || f.fontWeight;
+    const fontStyle = f[`${key}FontStyle`] || f.fontStyle;
+    return {
+      ...(fontFamily ? { fontFamily: fontStacks[fontFamily] ?? fontFamily } : {}),
+      ...(fontSize ? { fontSize: `${Number(fontSize) || 13}px` } : {}),
+      ...(fontWeight ? { fontWeight: Number(fontWeight) || 400 } : {}),
+      ...(fontStyle ? { fontStyle: fontStyle as CSSProperties["fontStyle"] } : {}),
+    };
+  };
+
+  // Build a "virtual" block exposing the focused sub-field's font props at top-level keys
+  const virtualBlock: Block = {
+    ...block,
+    fields: {
+      ...block.fields,
+      fontFamily: block.fields[`${focused}FontFamily`] || block.fields.fontFamily || "",
+      fontSize: block.fields[`${focused}FontSize`] || block.fields.fontSize || "",
+      fontWeight: block.fields[`${focused}FontWeight`] || block.fields.fontWeight || "",
+      fontStyle: block.fields[`${focused}FontStyle`] || block.fields.fontStyle || "",
+    },
+  };
+
+  const wrappedUpdate = (id: string, key: string, value: string) => {
+    if (key === "fontFamily" || key === "fontSize" || key === "fontWeight" || key === "fontStyle") {
+      const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+      onUpdateField(id, `${focused}${suffix}`, value);
+    } else {
+      onUpdateField(id, key, value);
+    }
+  };
+
+  const wrapperStyle = buildTextStyle(block.fields, { font: "Lora", size: 13, lineHeight: 1.65 });
+
+  return (
+    <div
+      {...rootProps}
+      className={classNames(frameClass, "twocolumn-block", "has-toolbar", block.className)}
+      style={wrapperStyle}
+    >
+      {isSelected ? (
+        <BlockTextToolbar
+          block={virtualBlock}
+          onUpdateField={wrappedUpdate}
+          defaultFont="Lora"
+          defaultSize={13}
+        />
+      ) : null}
+      {block.fields.title ? (
+        <EditableHTML
+          tag="h1"
+          className={classNames("twocolumn-title", focused === "title" && "sub-focused")}
+          html={block.fields.title}
+          onChange={(value) => onUpdateField(block.id, "title", value)}
+          onFocus={() => setFocused("title")}
+          style={subStyle("title")}
+        />
+      ) : null}
+      {block.fields.deck ? (
+        <EditableHTML
+          tag="p"
+          className={classNames("twocolumn-deck", focused === "deck" && "sub-focused")}
+          html={block.fields.deck}
+          onChange={(value) => onUpdateField(block.id, "deck", value)}
+          onFocus={() => setFocused("deck")}
+          style={subStyle("deck")}
+        />
+      ) : null}
+      <div className="twocolumn-grid">
+        <div className="twocolumn-col">
+          <EditableHTML
+            tag="p"
+            className={classNames(focused === "leftText" && "sub-focused")}
+            html={block.fields.leftText}
+            onChange={(value) => onUpdateField(block.id, "leftText", value)}
+            onFocus={() => setFocused("leftText")}
+            style={subStyle("leftText")}
+          />
+        </div>
+        <div className="twocolumn-col">
+          <EditableHTML
+            tag="p"
+            className={classNames(focused === "rightText" && "sub-focused")}
+            html={block.fields.rightText}
+            onChange={(value) => onUpdateField(block.id, "rightText", value)}
+            onFocus={() => setFocused("rightText")}
+            style={subStyle("rightText")}
+          />
+        </div>
+      </div>
+      {block.fields.readMore ? (
+        <EditableHTML
+          tag="div"
+          className={classNames("twocolumn-readmore", focused === "readMore" && "sub-focused")}
+          html={block.fields.readMore}
+          onChange={(value) => onUpdateField(block.id, "readMore", value)}
+          onFocus={() => setFocused("readMore")}
+          style={subStyle("readMore")}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 function ArticleImage({
@@ -2483,6 +2564,7 @@ function buildTextStyle(
 function EditableHTML({
   html,
   onChange,
+  onFocus,
   className,
   style,
   tag = "div",
@@ -2490,6 +2572,7 @@ function EditableHTML({
 }: {
   html: string;
   onChange: (next: string) => void;
+  onFocus?: () => void;
   className?: string;
   style?: CSSProperties;
   tag?: "div" | "p" | "span" | "h1";
@@ -2518,6 +2601,7 @@ function EditableHTML({
       className={classNames(className, "editable-text")}
       contentEditable
       onBlur={handleInput}
+      onFocus={onFocus}
       onInput={handleInput}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       style={style}
