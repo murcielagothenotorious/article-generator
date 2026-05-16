@@ -540,16 +540,6 @@ button {
   color: #9a9a9a;
 }
 
-.page.theme-monochrome .hero-block img,
-.page.theme-monochrome .news-photo-side img,
-.page.theme-monochrome .image-drop-zone img {
-  filter: brightness(0.92) saturate(0);
-}
-
-.page.theme-monochrome .orgchart {
-  filter: saturate(0) contrast(1.15);
-}
-
 .page.theme-monochrome .image-drop-zone::after {
   background: rgba(240, 240, 238, 0.88);
   border-color: rgba(22, 22, 22, 0.3);
@@ -584,6 +574,11 @@ button {
   overflow: visible;
   position: relative;
   width: var(--page-width, 750px);
+}
+
+.page.theme-monochrome.show-guides::before {
+  border-left-color: rgba(22, 22, 22, 0.28);
+  border-right-color: rgba(22, 22, 22, 0.28);
 }
 
 .page.show-guides::before {
@@ -951,7 +946,107 @@ body.is-exporting .image-drop-zone::after,
   line-height: 1.65;
   overflow-wrap: anywhere;
   padding: 8px var(--page-padding, 36px) 0;
+  position: relative;
   word-break: normal;
+}
+
+.paragraph-toolbar {
+  align-items: center;
+  background: #1f1f1f;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: #f4f4f2;
+  display: inline-flex;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  gap: 2px;
+  left: var(--page-padding, 36px);
+  padding: 4px 6px;
+  position: absolute;
+  top: -34px;
+  z-index: 50;
+}
+
+.paragraph-toolbar .pt-btn {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: #f4f4f2;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  height: 22px;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 6px;
+}
+
+.paragraph-toolbar .pt-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.paragraph-toolbar .pt-btn.active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.paragraph-toolbar .pt-bold {
+  font-weight: 800;
+}
+
+.paragraph-toolbar .pt-italic {
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+
+.editable-text {
+  outline: none;
+  cursor: text;
+}
+
+.has-toolbar {
+  position: relative;
+}
+
+p.editable-text {
+  margin: 0;
+}
+
+.editable-text:focus {
+  outline: 1px dashed rgba(120, 120, 120, 0.5);
+  outline-offset: 2px;
+}
+
+body.is-exporting .editable-text:focus {
+  outline: none;
+}
+
+.paragraph-toolbar .pt-select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
+  border-radius: 4px;
+  color: #f4f4f2;
+  font: inherit;
+  height: 22px;
+  max-width: 130px;
+  padding: 0 4px;
+}
+
+.paragraph-toolbar .pt-sep {
+  background: rgba(255, 255, 255, 0.18);
+  height: 16px;
+  margin: 0 4px;
+  width: 1px;
+}
+
+.paragraph-toolbar .pt-size {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+  padding: 0 4px;
+}
+
+body.is-exporting .paragraph-toolbar {
+  display: none;
 }
 
 .article-text-block p {

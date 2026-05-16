@@ -266,8 +266,9 @@ function newBlock(type: BlockType, categoryId: string): Block {
           fontFamily: "Lora",
           fontSize: "13",
           fontWeight: "400",
+          fontStyle: "normal",
           lineHeight: "1.65",
-          textAlign: "justify",
+          textAlign: "left",
           dropCap: "false",
         },
       };
@@ -563,22 +564,22 @@ function loadPersistedState() {
 export default function Home() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const blockRefs = useRef(new Map<string, HTMLElement>());
-  const [settings, setSettings] = useState<ArticleSettings>(() => {
+  const [settings, setSettings] = useState<ArticleSettings>(defaultSettings);
+  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
+  const [activeCategoryId, setActiveCategoryId] = useState<string>(defaultCategories[0].id);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
     const s = loadPersistedState();
-    return s?.settings ? { ...defaultSettings, ...s.settings } : defaultSettings;
-  });
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const s = loadPersistedState();
-    return s?.categories ?? defaultCategories;
-  });
-  const [blocks, setBlocks] = useState<Block[]>(() => {
-    const s = loadPersistedState();
-    return s?.blocks ?? initialBlocks;
-  });
-  const [activeCategoryId, setActiveCategoryId] = useState<string>(() => {
-    const s = loadPersistedState();
-    return s?.activeCategoryId ?? defaultCategories[0].id;
-  });
+    if (s) {
+      if (s.settings) setSettings({ ...defaultSettings, ...s.settings });
+      if (s.categories) setCategories(s.categories);
+      if (s.blocks) setBlocks(s.blocks);
+      if (s.activeCategoryId) setActiveCategoryId(s.activeCategoryId);
+    }
+    setHydrated(true);
+  }, []);
   const [selectedId, setSelectedId] = useState("");
   const [exportStatus, setExportStatus] = useState("");
   const [draggedBlockId, setDraggedBlockId] = useState("");
@@ -720,6 +721,20 @@ export default function Home() {
     }
   }
 
+  async function exportFullPage() {
+    if (!pageRef.current) return;
+    setExportStatus("Tüm sayfa PNG hazırlanıyor...");
+    try {
+      await downloadNodeAsPng(
+        pageRef.current,
+        `${(activeCategory?.navLabel ?? "article").replace(/\s+/g, "-").toLowerCase()}-full.png`,
+      );
+      setExportStatus("Tüm sayfa PNG indirildi.");
+    } catch (error) {
+      setExportStatus(error instanceof Error ? error.message : "PNG alınamadı.");
+    }
+  }
+
   async function exportPageSections() {
     if (!pageRef.current) return;
 
@@ -783,13 +798,14 @@ export default function Home() {
   }
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({ settings, categories, blocks, activeCategoryId }),
       );
     } catch {}
-  }, [settings, categories, blocks, activeCategoryId]);
+  }, [hydrated, settings, categories, blocks, activeCategoryId]);
 
   function resetAll() {
     if (!window.confirm("Tüm içerik ve ayarlar sıfırlanacak. Emin misiniz?")) return;
@@ -883,61 +899,6 @@ export default function Home() {
                   updateCategory(activeCategory.id, { name, navLabel: name })
                 }
               />
-              <div className="fixed-fields-editor">
-                <div className="fixed-fields-header">
-                  <span>Sabit alanlar</span>
-                  <button
-                    onClick={() =>
-                      updateCategory(activeCategory.id, {
-                        fixedFields: [
-                          ...(activeCategory.fixedFields ?? []),
-                          { key: "Alan adı", value: "" },
-                        ],
-                      })
-                    }
-                    type="button"
-                  >
-                    + Alan ekle
-                  </button>
-                </div>
-                {(activeCategory.fixedFields ?? []).map((field, index) => (
-                  <div className="fixed-field-row" key={index}>
-                    <input
-                      aria-label="Alan adı"
-                      placeholder="Alan adı"
-                      value={field.key}
-                      onChange={(e) => {
-                        const updated = activeCategory.fixedFields.map((f, i) =>
-                          i === index ? { ...f, key: e.target.value } : f,
-                        );
-                        updateCategory(activeCategory.id, { fixedFields: updated });
-                      }}
-                    />
-                    <input
-                      aria-label="Değer"
-                      placeholder="Değer"
-                      value={field.value}
-                      onChange={(e) => {
-                        const updated = activeCategory.fixedFields.map((f, i) =>
-                          i === index ? { ...f, value: e.target.value } : f,
-                        );
-                        updateCategory(activeCategory.id, { fixedFields: updated });
-                      }}
-                    />
-                    <button
-                      aria-label="Alanı sil"
-                      className="fixed-field-remove"
-                      onClick={() => {
-                        const updated = activeCategory.fixedFields.filter((_, i) => i !== index);
-                        updateCategory(activeCategory.id, { fixedFields: updated });
-                      }}
-                      type="button"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
               <button
                 className="danger-lite"
                 disabled={categories.length <= 1}
@@ -956,6 +917,21 @@ export default function Home() {
             label="Tarih"
             value={settings.dateLine}
             onChange={(value) => setSettings({ ...settings, dateLine: value })}
+          />
+          <TextInput
+            label="Edition"
+            value={settings.edition}
+            onChange={(value) => setSettings({ ...settings, edition: value })}
+          />
+          <TextInput
+            label="Vol / No"
+            value={settings.volume}
+            onChange={(value) => setSettings({ ...settings, volume: value })}
+          />
+          <TextInput
+            label="Fiyat"
+            value={settings.price}
+            onChange={(value) => setSettings({ ...settings, price: value })}
           />
           <TextInput
             label="Gazete adı"
@@ -1155,6 +1131,9 @@ export default function Home() {
         ) : null}
 
         <section className="control-section export-section">
+          <button className="primary-action" onClick={exportFullPage} type="button">
+            Tüm sayfayı PNG al
+          </button>
           <button className="primary-action" onClick={exportPageSections} type="button">
             Bölüm bölüm PNG al
           </button>
@@ -1338,10 +1317,18 @@ function RenderedBlock({
       return (
         <div
           {...rootProps}
-          className={classNames(frameClass, "section-tag", block.className)}
+          className={classNames(frameClass, "section-tag", "has-toolbar", block.className)}
           lang="en"
+          style={buildTextStyle(block.fields, { font: "Libre Franklin", size: 11 })}
         >
-          {block.fields.text}
+          {isSelected ? (
+            <BlockTextToolbar block={block} onUpdateField={onUpdateField} defaultFont="Libre Franklin" defaultSize={11} />
+          ) : null}
+          <EditableHTML
+            tag="span"
+            html={block.fields.text}
+            onChange={(value) => onUpdateField(block.id, "text", value)}
+          />
         </div>
       );
     case "hero":
@@ -1372,49 +1359,99 @@ function RenderedBlock({
       );
     case "caption":
       return (
-        <div {...rootProps} className={classNames(frameClass, "hero-caption", block.className)}>
-          <span className="location">{block.fields.location}</span>
-          <span className="credit" lang="en">
-            {block.fields.credit}
-          </span>
+        <div
+          {...rootProps}
+          className={classNames(frameClass, "hero-caption", "has-toolbar", block.className)}
+          style={buildTextStyle(block.fields, { font: "Libre Franklin", size: 11 })}
+        >
+          {isSelected ? (
+            <BlockTextToolbar block={block} onUpdateField={onUpdateField} defaultFont="Libre Franklin" defaultSize={11} />
+          ) : null}
+          <EditableHTML
+            tag="span"
+            className="location"
+            html={block.fields.location}
+            onChange={(value) => onUpdateField(block.id, "location", value)}
+          />
+          <EditableHTML
+            tag="span"
+            className="credit"
+            html={block.fields.credit}
+            onChange={(value) => onUpdateField(block.id, "credit", value)}
+          />
         </div>
       );
     case "deck":
       return (
-        <p {...rootProps} className={classNames(frameClass, "deck", block.className)}>
-          {block.fields.text}
-        </p>
+        <div
+          {...rootProps}
+          className={classNames(frameClass, "deck", "has-toolbar", block.className)}
+          style={buildTextStyle(block.fields, { font: "Playfair Display", size: 15 })}
+        >
+          {isSelected ? (
+            <BlockTextToolbar block={block} onUpdateField={onUpdateField} defaultFont="Playfair Display" defaultSize={15} />
+          ) : null}
+          <EditableHTML
+            tag="p"
+            html={block.fields.text}
+            onChange={(value) => onUpdateField(block.id, "text", value)}
+          />
+        </div>
       );
     case "byline":
       return (
-        <div {...rootProps} className={classNames(frameClass, "byline", block.className)}>
-          By <span className="author">{block.fields.author}</span> <span className="sep">|</span>
-          <span className="date">{block.fields.date}</span>
+        <div
+          {...rootProps}
+          className={classNames(frameClass, "byline", "has-toolbar", block.className)}
+          style={buildTextStyle(block.fields, { font: "Libre Franklin", size: 11 })}
+        >
+          {isSelected ? (
+            <BlockTextToolbar block={block} onUpdateField={onUpdateField} defaultFont="Libre Franklin" defaultSize={11} />
+          ) : null}
+          By{" "}
+          <EditableHTML
+            tag="span"
+            className="author"
+            html={block.fields.author}
+            onChange={(value) => onUpdateField(block.id, "author", value)}
+          />{" "}
+          <span className="sep">|</span>
+          <EditableHTML
+            tag="span"
+            className="date"
+            html={block.fields.date}
+            onChange={(value) => onUpdateField(block.id, "date", value)}
+          />
         </div>
       );
     case "paragraph": {
       const paragraphStyle = {
-        fontFamily: fontStacks[block.fields.fontFamily] ?? fontStacks.Lora,
-        fontSize: `${Number(block.fields.fontSize) || 13}px`,
-        fontWeight: Number(block.fields.fontWeight) || 400,
-        lineHeight: Number(block.fields.lineHeight) || 1.65,
+        ...buildTextStyle(block.fields, { font: "Lora", size: 13, lineHeight: 1.65 }),
         textAlign: block.fields.textAlign as CSSProperties["textAlign"],
       } satisfies CSSProperties;
-
       return (
         <div
           {...rootProps}
           className={classNames(frameClass, "article-text-block", block.className)}
         >
-          <p
+          {isSelected ? (
+            <BlockTextToolbar
+              block={block}
+              onUpdateField={onUpdateField}
+              showAlignment
+              showDropCap
+            />
+          ) : null}
+          <EditableHTML
+            tag="p"
+            html={block.fields.text}
+            onChange={(value) => onUpdateField(block.id, "text", value)}
             className={classNames(
               block.className.includes("lead") && "lead",
               block.fields.dropCap === "true" && "drop-cap",
             )}
             style={paragraphStyle}
-          >
-            {block.fields.text}
-          </p>
+          />
         </div>
       );
     }
@@ -1652,23 +1689,53 @@ function RenderedBlock({
       );
     case "twocolumn":
       return (
-        <div {...rootProps} className={classNames(frameClass, "twocolumn-block", block.className)}>
+        <div
+          {...rootProps}
+          className={classNames(frameClass, "twocolumn-block", "has-toolbar", block.className)}
+          style={buildTextStyle(block.fields, { font: "Lora", size: 13, lineHeight: 1.65 })}
+        >
+          {isSelected ? (
+            <BlockTextToolbar block={block} onUpdateField={onUpdateField} defaultFont="Lora" defaultSize={13} />
+          ) : null}
           {block.fields.title ? (
-            <h2 className="twocolumn-title">{block.fields.title}</h2>
+            <EditableHTML
+              tag="h1"
+              className="twocolumn-title"
+              html={block.fields.title}
+              onChange={(value) => onUpdateField(block.id, "title", value)}
+            />
           ) : null}
           {block.fields.deck ? (
-            <p className="twocolumn-deck">{block.fields.deck}</p>
+            <EditableHTML
+              tag="p"
+              className="twocolumn-deck"
+              html={block.fields.deck}
+              onChange={(value) => onUpdateField(block.id, "deck", value)}
+            />
           ) : null}
           <div className="twocolumn-grid">
             <div className="twocolumn-col">
-              <p>{block.fields.leftText}</p>
+              <EditableHTML
+                tag="p"
+                html={block.fields.leftText}
+                onChange={(value) => onUpdateField(block.id, "leftText", value)}
+              />
             </div>
             <div className="twocolumn-col">
-              <p>{block.fields.rightText}</p>
+              <EditableHTML
+                tag="p"
+                html={block.fields.rightText}
+                onChange={(value) => onUpdateField(block.id, "rightText", value)}
+              />
             </div>
           </div>
           {block.fields.readMore ? (
-            <div className="twocolumn-readmore">{block.fields.readMore}</div>
+            <EditableHTML
+              tag="div"
+              className="twocolumn-readmore"
+              html={block.fields.readMore}
+              onChange={(value) => onUpdateField(block.id, "readMore", value)}
+            />
           ) : null}
         </div>
       );
@@ -2282,6 +2349,181 @@ function OrgNodeEditor({
         Kişi ekle
       </button>
     </div>
+  );
+}
+
+function BlockTextToolbar({
+  block,
+  onUpdateField,
+  defaultFont = "Lora",
+  defaultSize = 13,
+  showAlignment = false,
+  showDropCap = false,
+}: {
+  block: Block;
+  onUpdateField: (id: string, key: string, value: string) => void;
+  defaultFont?: string;
+  defaultSize?: number;
+  showAlignment?: boolean;
+  showDropCap?: boolean;
+}) {
+  const currentSize = Number(block.fields.fontSize) || defaultSize;
+  const currentWeight = Number(block.fields.fontWeight) || 400;
+  const currentAlign = block.fields.textAlign || "left";
+  const currentStyle = block.fields.fontStyle || "normal";
+  const currentFont = block.fields.fontFamily || defaultFont;
+  const currentDropCap = block.fields.dropCap === "true";
+
+  return (
+    <div className="paragraph-toolbar" onClick={(e) => e.stopPropagation()}>
+      <select
+        className="pt-select"
+        title="Font"
+        value={currentFont}
+        onChange={(e) => onUpdateField(block.id, "fontFamily", e.target.value)}
+      >
+        {fontOptions.map((font) => (
+          <option key={font} value={font}>{font}</option>
+        ))}
+      </select>
+      <span className="pt-sep" />
+      <button
+        type="button"
+        className={classNames("pt-btn", "pt-bold", currentWeight >= 600 && "active")}
+        title="Kalın (seçili metin veya blok)"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed) {
+            document.execCommand("bold");
+          } else {
+            onUpdateField(block.id, "fontWeight", currentWeight >= 600 ? "400" : "700");
+          }
+        }}
+      >
+        B
+      </button>
+      <button
+        type="button"
+        className={classNames("pt-btn", "pt-italic", currentStyle === "italic" && "active")}
+        title="İtalik (seçili metin veya blok)"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed) {
+            document.execCommand("italic");
+          } else {
+            onUpdateField(block.id, "fontStyle", currentStyle === "italic" ? "normal" : "italic");
+          }
+        }}
+      >
+        I
+      </button>
+      {showDropCap ? (
+        <button
+          type="button"
+          className={classNames("pt-btn", currentDropCap && "active")}
+          title="Drop cap"
+          onClick={() => onUpdateField(block.id, "dropCap", currentDropCap ? "false" : "true")}
+        >
+          ¶
+        </button>
+      ) : null}
+      {showAlignment ? (
+        <>
+          <span className="pt-sep" />
+          {(["left", "center", "right", "justify"] as const).map((align) => (
+            <button
+              key={align}
+              type="button"
+              className={classNames("pt-btn", currentAlign === align && "active")}
+              title={align}
+              onClick={() => onUpdateField(block.id, "textAlign", align)}
+            >
+              {align === "left" ? "⟸" : align === "center" ? "≡" : align === "right" ? "⟹" : "☰"}
+            </button>
+          ))}
+        </>
+      ) : null}
+      <span className="pt-sep" />
+      <button
+        type="button"
+        className="pt-btn"
+        title="Küçült"
+        onClick={() => onUpdateField(block.id, "fontSize", String(Math.max(6, currentSize - 1)))}
+      >
+        −
+      </button>
+      <span className="pt-size">{currentSize}px</span>
+      <button
+        type="button"
+        className="pt-btn"
+        title="Büyüt"
+        onClick={() => onUpdateField(block.id, "fontSize", String(currentSize + 1))}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function buildTextStyle(
+  fields: Record<string, string>,
+  defaults: { font: string; size: number; lineHeight?: number },
+): CSSProperties {
+  return {
+    fontFamily: fontStacks[fields.fontFamily] ?? fontStacks[defaults.font] ?? defaults.font,
+    fontSize: `${Number(fields.fontSize) || defaults.size}px`,
+    fontWeight: Number(fields.fontWeight) || 400,
+    fontStyle: (fields.fontStyle as CSSProperties["fontStyle"]) || "normal",
+    ...(defaults.lineHeight ? { lineHeight: Number(fields.lineHeight) || defaults.lineHeight } : {}),
+  };
+}
+
+function EditableHTML({
+  html,
+  onChange,
+  className,
+  style,
+  tag = "div",
+  ariaLabel,
+}: {
+  html: string;
+  onChange: (next: string) => void;
+  className?: string;
+  style?: CSSProperties;
+  tag?: "div" | "p" | "span" | "h1";
+  ariaLabel?: string;
+}) {
+  const ref = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (document.activeElement === node) return;
+    if (node.innerHTML !== html) {
+      node.innerHTML = html;
+    }
+  }, [html]);
+
+  const handleInput = (event: React.FormEvent<HTMLElement>) => {
+    onChange((event.currentTarget as HTMLElement).innerHTML);
+  };
+
+  const Tag = tag as unknown as React.ElementType;
+  return (
+    <Tag
+      ref={ref}
+      aria-label={ariaLabel}
+      className={classNames(className, "editable-text")}
+      contentEditable
+      onBlur={handleInput}
+      onInput={handleInput}
+      onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+      style={style}
+      suppressContentEditableWarning
+      suppressHydrationWarning
+    />
   );
 }
 
