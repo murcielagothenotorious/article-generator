@@ -1189,10 +1189,12 @@ body.is-exporting .paragraph-toolbar {
 .inline-photo.float-left {
   float: left;
   margin-left: var(--page-padding, 36px) !important;
+  margin-right: 18px !important;
 }
 
 .inline-photo.float-right {
   float: right;
+  margin-left: 18px !important;
   margin-right: var(--page-padding, 36px) !important;
 }
 

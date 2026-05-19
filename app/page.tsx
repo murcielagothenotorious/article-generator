@@ -442,6 +442,16 @@ async function withExportPrep<T>(node: HTMLElement, work: () => Promise<T>): Pro
   const selectionEls = Array.from(node.querySelectorAll(".selected-for-edit"));
   selectionEls.forEach((el) => el.classList.remove("selected-for-edit"));
 
+  // html-to-image uses getComputedStyle on live elements, so :hover stays active.
+  // Inline styles override computed pseudo-class styles reliably.
+  const hoverEls = Array.from(
+    node.querySelectorAll<HTMLElement>(".editable-block, .free-photo-frame"),
+  );
+  hoverEls.forEach((el) => {
+    el.style.outline = "none";
+    el.style.border = "none";
+  });
+
   const dropZones = Array.from(node.querySelectorAll(".image-drop-zone"));
   dropZones.forEach((el) => el.classList.add("exporting"));
 
@@ -488,6 +498,10 @@ async function withExportPrep<T>(node: HTMLElement, work: () => Promise<T>): Pro
         entry.fallback.replaceWith(entry.original);
       }
     }
+    hoverEls.forEach((el) => {
+      el.style.outline = "";
+      el.style.border = "";
+    });
     dropZones.forEach((el) => el.classList.remove("exporting"));
     selectionEls.forEach((el) => el.classList.add("selected-for-edit"));
     if (pageHadGuides) pageHost?.classList.add("show-guides");
