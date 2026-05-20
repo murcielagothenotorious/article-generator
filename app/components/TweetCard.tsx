@@ -206,12 +206,17 @@ function TweetActionBar({
     >
       <div style={item}>
         <ReplyIcon color={tokens.muted} />
+        {stats.replies ? <span>{stats.replies}</span> : null}
       </div>
       <div style={item}>
         <RepostIcon color={tokens.muted} size={18} />
+        {stats.reposts ? <span>{stats.reposts}</span> : null}
       </div>
       <div style={item}>
         {stats.liked ? <LikeFilledIcon /> : <LikeIcon color={tokens.muted} />}
+        {stats.likes ? (
+          <span style={{ color: stats.liked ? "#f91880" : tokens.muted }}>{stats.likes}</span>
+        ) : null}
       </div>
       <div style={item}>
         <BookmarkIcon color={tokens.muted} />
