@@ -5,7 +5,7 @@
 import { CSSProperties, ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import { toCanvas, toPng } from "html-to-image";
-import { TweetCard, TweetTheme, TweetVariant } from "./components/TweetCard";
+import { RepostStyle, TweetCard, TweetLang, TweetTheme, TweetVariant } from "./components/TweetCard";
 
 type BlockType =
   | "section"
@@ -376,9 +376,16 @@ function newBlock(type: BlockType, categoryId: string): Block {
           bannerUrl: "",
           verified: "true",
           theme: "dark",
+          lang: "tr",
           cardWidth: "560",
           variant: "tweet",
+          repostStyle: "header",
           reposterName: "Reposter",
+          reposterHandle: "reposter",
+          reposterAvatar: "",
+          reposterTweet: "Yorumlu repost metni...",
+          reposterTimestamp: "1:00 PM · 16 May 2026",
+          reposterVerified: "false",
           bio: "Bio buraya. @mention, #hashtag, link vurgulanır.",
           location: "İstanbul",
           joinDate: "May 2020",
@@ -1743,10 +1750,17 @@ function RenderedBlock({
             following={block.fields.following}
             handle={block.fields.handle}
             joinDate={block.fields.joinDate}
+            lang={(block.fields.lang as TweetLang) || "tr"}
             location={block.fields.location}
             media={block.fields.imageUrl2 || undefined}
             name={block.fields.name}
+            repostStyle={(block.fields.repostStyle as RepostStyle) || "header"}
+            reposterAvatar={block.fields.reposterAvatar || undefined}
+            reposterHandle={block.fields.reposterHandle}
             reposterName={block.fields.reposterName}
+            reposterTimestamp={block.fields.reposterTimestamp}
+            reposterTweet={block.fields.reposterTweet}
+            reposterVerified={block.fields.reposterVerified === "true"}
             theme={(block.fields.theme as TweetTheme) || "dark"}
             timestamp={block.fields.timestamp}
             tweet={block.fields.tweet}
@@ -2465,6 +2479,12 @@ function BlockEditor({
               value={block.fields.theme}
               onChange={(value) => onUpdateField("theme", value)}
             />
+            <SelectInput
+              label="Dil"
+              options={["tr", "en"]}
+              value={block.fields.lang || "tr"}
+              onChange={(value) => onUpdateField("lang", value)}
+            />
             <TextInput
               label="İsim"
               value={block.fields.name}
@@ -2504,13 +2524,56 @@ function BlockEditor({
           ) : null}
 
           {block.fields.variant === "repost" ? (
-            <div className="style-grid">
-              <TextInput
-                label="Repostlayan"
-                value={block.fields.reposterName || ""}
-                onChange={(value) => onUpdateField("reposterName", value)}
-              />
-            </div>
+            <>
+              <div className="style-grid">
+                <SelectInput
+                  label="Repost stili"
+                  options={["header", "quote"]}
+                  value={block.fields.repostStyle || "header"}
+                  onChange={(value) => onUpdateField("repostStyle", value)}
+                />
+                <TextInput
+                  label="Repostlayan"
+                  value={block.fields.reposterName || ""}
+                  onChange={(value) => onUpdateField("reposterName", value)}
+                />
+              </div>
+              {block.fields.repostStyle === "quote" ? (
+                <>
+                  <label className="file-control">
+                    <span>Repostlayan avatar yükle</span>
+                    <input
+                      accept="image/*"
+                      onChange={(e) => onUploadImageToField("reposterAvatar", e)}
+                      type="file"
+                    />
+                  </label>
+                  <div className="style-grid">
+                    <TextInput
+                      label="Repostlayan handle"
+                      value={block.fields.reposterHandle || ""}
+                      onChange={(value) => onUpdateField("reposterHandle", value)}
+                    />
+                    <SelectInput
+                      label="Repostlayan verified"
+                      options={["true", "false"]}
+                      value={block.fields.reposterVerified || "false"}
+                      onChange={(value) => onUpdateField("reposterVerified", value)}
+                    />
+                    <TextArea
+                      label="Repostlayan yorumu"
+                      value={block.fields.reposterTweet || ""}
+                      onChange={(value) => onUpdateField("reposterTweet", value)}
+                    />
+                    <TextInput
+                      label="Repostlayan zaman"
+                      value={block.fields.reposterTimestamp || ""}
+                      onChange={(value) => onUpdateField("reposterTimestamp", value)}
+                    />
+                  </div>
+                </>
+              ) : null}
+            </>
           ) : null}
 
           {block.fields.variant === "profile" ? (

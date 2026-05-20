@@ -4,6 +4,35 @@ import { CSSProperties, ReactNode } from "react";
 
 export type TweetTheme = "dark" | "light";
 export type TweetVariant = "tweet" | "repost" | "profile";
+export type RepostStyle = "header" | "quote";
+export type TweetLang = "tr" | "en";
+
+const TWEET_LABELS: Record<TweetLang, {
+  reposted: string;
+  follow: string;
+  joined: string;
+  following: string;
+  followers: string;
+}> = {
+  tr: {
+    reposted: "yeniden paylaştı",
+    follow: "Takip et",
+    joined: "Katıldı:",
+    following: "Takip edilen",
+    followers: "Takipçi",
+  },
+  en: {
+    reposted: "reposted",
+    follow: "Follow",
+    joined: "Joined",
+    following: "Following",
+    followers: "Followers",
+  },
+};
+
+export function tweetLabels(lang: TweetLang) {
+  return TWEET_LABELS[lang] ?? TWEET_LABELS.en;
+}
 
 export const TWEET_DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -83,12 +112,19 @@ export function TweetCard({
   style,
   variant = "tweet",
   reposterName,
+  repostStyle = "header",
+  reposterAvatar,
+  reposterHandle,
+  reposterTweet,
+  reposterTimestamp,
+  reposterVerified,
   bio,
   banner,
   location,
   joinDate,
   following,
   followers,
+  lang = "en",
 }: {
   name: string;
   handle: string;
@@ -102,6 +138,13 @@ export function TweetCard({
   style?: CSSProperties;
   variant?: TweetVariant;
   reposterName?: string;
+  repostStyle?: RepostStyle;
+  reposterAvatar?: string;
+  reposterHandle?: string;
+  reposterTweet?: string;
+  reposterTimestamp?: string;
+  reposterVerified?: boolean;
+  lang?: TweetLang;
   bio?: string;
   banner?: string;
   location?: string;
@@ -110,10 +153,35 @@ export function TweetCard({
   followers?: string;
 }) {
   const tokens = tweetThemeTokens(theme);
+  const labels = tweetLabels(lang);
+
+  if (variant === "repost" && repostStyle === "quote") {
+    return (
+      <QuoteRepostCard
+        avatar={avatar}
+        handle={handle}
+        media={media}
+        name={name}
+        reposterAvatar={reposterAvatar}
+        reposterHandle={reposterHandle}
+        reposterName={reposterName || name}
+        reposterTimestamp={reposterTimestamp}
+        reposterTweet={reposterTweet}
+        reposterVerified={reposterVerified}
+        style={style}
+        theme={theme}
+        timestamp={timestamp}
+        tweet={tweet}
+        verified={verified}
+        width={width}
+      />
+    );
+  }
 
   if (variant === "profile") {
     return (
       <ProfileCard
+        labels={labels}
         avatar={avatar}
         banner={banner}
         bio={bio}
@@ -158,7 +226,7 @@ export function TweetCard({
           }}
         >
           <RepostIcon color={tokens.muted} />
-          <span>{reposterName || name} reposted</span>
+          <span>{reposterName || name} {labels.reposted}</span>
         </div>
       ) : null}
       <div style={{ display: "flex", gap: 12 }}>
@@ -225,6 +293,151 @@ export function TweetCard({
   );
 }
 
+function QuoteRepostCard({
+  name,
+  handle,
+  tweet,
+  timestamp,
+  avatar,
+  verified,
+  media,
+  theme,
+  width,
+  style,
+  reposterName,
+  reposterHandle,
+  reposterAvatar,
+  reposterTweet,
+  reposterTimestamp,
+  reposterVerified,
+}: {
+  name: string;
+  handle: string;
+  tweet: string;
+  timestamp: string;
+  avatar?: string;
+  verified?: boolean;
+  media?: string;
+  theme: TweetTheme;
+  width: number | string;
+  style?: CSSProperties;
+  reposterName: string;
+  reposterHandle?: string;
+  reposterAvatar?: string;
+  reposterTweet?: string;
+  reposterTimestamp?: string;
+  reposterVerified?: boolean;
+}) {
+  const tokens = tweetThemeTokens(theme);
+
+  return (
+    <div
+      style={{
+        background: tokens.bg,
+        border: `1px solid ${tokens.border}`,
+        borderRadius: 16,
+        color: tokens.text,
+        fontFamily: FONT_STACK,
+        padding: 16,
+        width,
+        ...style,
+      }}
+    >
+      <div style={{ display: "flex", gap: 12 }}>
+        <img
+          alt=""
+          src={reposterAvatar || TWEET_DEFAULT_AVATAR}
+          style={{ borderRadius: "50%", flex: "0 0 auto", height: 48, objectFit: "cover", width: 48 }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>{reposterName}</span>
+            {reposterVerified ? <VerifiedBadge /> : null}
+          </div>
+          <div style={{ color: tokens.muted, fontSize: 15, lineHeight: 1.2 }}>
+            @{reposterHandle || "reposter"}
+          </div>
+        </div>
+      </div>
+      {reposterTweet ? (
+        <div
+          style={{
+            fontSize: 17,
+            lineHeight: 1.4,
+            marginTop: 12,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {renderTweetRichText(reposterTweet, tokens.link)}
+        </div>
+      ) : null}
+
+      {/* Nested original tweet */}
+      <div
+        style={{
+          border: `1px solid ${tokens.border}`,
+          borderRadius: 16,
+          marginTop: 12,
+          padding: 12,
+        }}
+      >
+        <div style={{ alignItems: "center", display: "flex", gap: 8 }}>
+          <img
+            alt=""
+            src={avatar || TWEET_DEFAULT_AVATAR}
+            style={{ borderRadius: "50%", flex: "0 0 auto", height: 20, objectFit: "cover", width: 20 }}
+          />
+          <span style={{ fontWeight: 700, fontSize: 15 }}>{name}</span>
+          {verified ? <VerifiedBadge size={14} /> : null}
+          <span style={{ color: tokens.muted, fontSize: 15 }}>@{handle}</span>
+          <span style={{ color: tokens.muted, fontSize: 15 }}>·</span>
+          <span style={{ color: tokens.muted, fontSize: 15 }}>{timestamp}</span>
+        </div>
+        <div
+          style={{
+            fontSize: 15,
+            lineHeight: 1.4,
+            marginTop: 6,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {renderTweetRichText(tweet, tokens.link)}
+        </div>
+        {media ? (
+          <div
+            style={{
+              border: `1px solid ${tokens.border}`,
+              borderRadius: 12,
+              marginTop: 8,
+              overflow: "hidden",
+            }}
+          >
+            <img
+              alt=""
+              src={media}
+              style={{ display: "block", maxHeight: 360, objectFit: "cover", width: "100%" }}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        style={{
+          color: tokens.muted,
+          fontSize: 15,
+          marginTop: 12,
+          paddingTop: 12,
+          borderTop: `1px solid ${tokens.border}`,
+        }}
+      >
+        {reposterTimestamp || timestamp}
+      </div>
+    </div>
+  );
+}
+
 function ProfileCard({
   name,
   handle,
@@ -239,6 +452,7 @@ function ProfileCard({
   following,
   followers,
   style,
+  labels,
 }: {
   name: string;
   handle: string;
@@ -253,6 +467,7 @@ function ProfileCard({
   following?: string;
   followers?: string;
   style?: CSSProperties;
+  labels: ReturnType<typeof tweetLabels>;
 }) {
   const tokens = tweetThemeTokens(theme);
   const avatarSize = 128;
@@ -312,7 +527,7 @@ function ProfileCard({
             }}
             type="button"
           >
-            Follow
+            {labels.follow}
           </button>
         </div>
         <div style={{ marginTop: 12 }}>
@@ -352,7 +567,7 @@ function ProfileCard({
           ) : null}
           {joinDate ? (
             <span style={{ alignItems: "center", display: "flex", gap: 4 }}>
-              <CalendarIcon color={tokens.muted} /> Joined {joinDate}
+              <CalendarIcon color={tokens.muted} /> {labels.joined} {joinDate}
             </span>
           ) : null}
         </div>
@@ -367,12 +582,12 @@ function ProfileCard({
         >
           {following ? (
             <span>
-              <strong style={{ color: tokens.text }}>{following}</strong> Following
+              <strong style={{ color: tokens.text }}>{following}</strong> {labels.following}
             </span>
           ) : null}
           {followers ? (
             <span>
-              <strong style={{ color: tokens.text }}>{followers}</strong> Followers
+              <strong style={{ color: tokens.text }}>{followers}</strong> {labels.followers}
             </span>
           ) : null}
         </div>

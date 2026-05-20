@@ -2,7 +2,14 @@
 
 import { ChangeEvent, useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { TWEET_DEFAULT_AVATAR, TweetCard, TweetTheme, TweetVariant } from "../components/TweetCard";
+import {
+  RepostStyle,
+  TWEET_DEFAULT_AVATAR,
+  TweetCard,
+  TweetLang,
+  TweetTheme,
+  TweetVariant,
+} from "../components/TweetCard";
 
 export default function TwitterCardPage() {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -12,7 +19,13 @@ export default function TwitterCardPage() {
   const [avatar, setAvatar] = useState(TWEET_DEFAULT_AVATAR);
   const [media, setMedia] = useState("");
   const [variant, setVariant] = useState<TweetVariant>("tweet");
+  const [repostStyle, setRepostStyle] = useState<RepostStyle>("header");
   const [reposterName, setReposterName] = useState("Reposter");
+  const [reposterHandle, setReposterHandle] = useState("reposter");
+  const [reposterAvatar, setReposterAvatar] = useState(TWEET_DEFAULT_AVATAR);
+  const [reposterTweet, setReposterTweet] = useState("Yorumlu repost metni...");
+  const [reposterTimestamp, setReposterTimestamp] = useState("1:00 PM · 16 May 2026");
+  const [reposterVerified, setReposterVerified] = useState(false);
   const [banner, setBanner] = useState("");
   const [bio, setBio] = useState("Bio buraya. @mention, #hashtag, link vurgulanır.");
   const [location, setLocation] = useState("İstanbul, Türkiye");
@@ -24,6 +37,7 @@ export default function TwitterCardPage() {
   );
   const [timestamp, setTimestamp] = useState("12:34 PM · 16 May 2026");
   const [theme, setTheme] = useState<TweetTheme>("dark");
+  const [lang, setLang] = useState<TweetLang>("tr");
   const [status, setStatus] = useState("");
 
   function onAvatarFile(e: ChangeEvent<HTMLInputElement>) {
@@ -42,6 +56,14 @@ export default function TwitterCardPage() {
     }
     const reader = new FileReader();
     reader.onload = () => setMedia(String(reader.result));
+    reader.readAsDataURL(file);
+  }
+
+  function onReposterAvatarFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setReposterAvatar(String(reader.result));
     reader.readAsDataURL(file);
   }
 
@@ -120,6 +142,12 @@ export default function TwitterCardPage() {
             <option value="light">Light</option>
           </select>
         </Field>
+        <Field label="Dil">
+          <select value={lang} onChange={(e) => setLang(e.target.value as TweetLang)}>
+            <option value="tr">Türkçe</option>
+            <option value="en">English</option>
+          </select>
+        </Field>
         <Field label="">
           <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
             <input
@@ -155,9 +183,56 @@ export default function TwitterCardPage() {
         ) : null}
 
         {variant === "repost" ? (
-          <Field label="Repostlayan kişi">
-            <input value={reposterName} onChange={(e) => setReposterName(e.target.value)} />
-          </Field>
+          <>
+            <Field label="Repost stili">
+              <select
+                value={repostStyle}
+                onChange={(e) => setRepostStyle(e.target.value as RepostStyle)}
+              >
+                <option value="header">Üstte "reposted" başlığı</option>
+                <option value="quote">Div içinde div (alıntı kart)</option>
+              </select>
+            </Field>
+            <Field label="Repostlayan kişi (display name)">
+              <input value={reposterName} onChange={(e) => setReposterName(e.target.value)} />
+            </Field>
+            {repostStyle === "quote" ? (
+              <>
+                <Field label="Repostlayan handle">
+                  <input
+                    value={reposterHandle}
+                    onChange={(e) => setReposterHandle(e.target.value)}
+                  />
+                </Field>
+                <Field label="Repostlayan avatar">
+                  <input type="file" accept="image/*" onChange={onReposterAvatarFile} />
+                </Field>
+                <Field label="Repostlayan yorumu">
+                  <textarea
+                    rows={3}
+                    value={reposterTweet}
+                    onChange={(e) => setReposterTweet(e.target.value)}
+                  />
+                </Field>
+                <Field label="Repostlayan zaman">
+                  <input
+                    value={reposterTimestamp}
+                    onChange={(e) => setReposterTimestamp(e.target.value)}
+                  />
+                </Field>
+                <Field label="">
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={reposterVerified}
+                      onChange={(e) => setReposterVerified(e.target.checked)}
+                    />
+                    Repostlayan verified
+                  </label>
+                </Field>
+              </>
+            ) : null}
+          </>
         ) : null}
 
         {variant === "profile" ? (
@@ -204,10 +279,17 @@ export default function TwitterCardPage() {
             following={following}
             handle={handle}
             joinDate={joinDate}
+            lang={lang}
             location={location}
             media={media || undefined}
             name={name}
+            repostStyle={repostStyle}
+            reposterAvatar={reposterAvatar}
+            reposterHandle={reposterHandle}
             reposterName={reposterName}
+            reposterTimestamp={reposterTimestamp}
+            reposterTweet={reposterTweet}
+            reposterVerified={reposterVerified}
             theme={theme}
             timestamp={timestamp}
             tweet={tweet}
