@@ -387,7 +387,7 @@ function newBlock(type: BlockType, categoryId: string): Block {
           reposterTimestamp: "1:00 PM · 16 May 2026",
           reposterVerified: "false",
           bio: "Bio buraya. @mention, #hashtag, link vurgulanır.",
-          location: "İstanbul",
+          location: "Los Santos",
           joinDate: "May 2020",
           following: "128",
           followers: "4,231",

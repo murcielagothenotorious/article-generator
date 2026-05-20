@@ -28,7 +28,7 @@ export default function TwitterCardPage() {
   const [reposterVerified, setReposterVerified] = useState(false);
   const [banner, setBanner] = useState("");
   const [bio, setBio] = useState("Bio buraya. @mention, #hashtag, link vurgulanır.");
-  const [location, setLocation] = useState("İstanbul, Türkiye");
+  const [location, setLocation] = useState("Los Santos, San Andreas");
   const [joinDate, setJoinDate] = useState("May 2020");
   const [following, setFollowing] = useState("128");
   const [followers, setFollowers] = useState("4,231");
