@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { TWEET_DEFAULT_AVATAR, TweetCard, TweetTheme } from "../components/TweetCard";
+import { TWEET_DEFAULT_AVATAR, TweetCard, TweetTheme, TweetVariant } from "../components/TweetCard";
 
 export default function TwitterCardPage() {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -10,6 +10,15 @@ export default function TwitterCardPage() {
   const [handle, setHandle] = useState("handle");
   const [verified, setVerified] = useState(true);
   const [avatar, setAvatar] = useState(TWEET_DEFAULT_AVATAR);
+  const [media, setMedia] = useState("");
+  const [variant, setVariant] = useState<TweetVariant>("tweet");
+  const [reposterName, setReposterName] = useState("Reposter");
+  const [banner, setBanner] = useState("");
+  const [bio, setBio] = useState("Bio buraya. @mention, #hashtag, link vurgulanır.");
+  const [location, setLocation] = useState("İstanbul, Türkiye");
+  const [joinDate, setJoinDate] = useState("May 2020");
+  const [following, setFollowing] = useState("128");
+  const [followers, setFollowers] = useState("4,231");
   const [tweet, setTweet] = useState(
     "Tweet metni buraya. Linkler, #etiketler ve @bahsetmeler otomatik vurgulanır.",
   );
@@ -22,6 +31,28 @@ export default function TwitterCardPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setAvatar(String(reader.result));
+    reader.readAsDataURL(file);
+  }
+
+  function onMediaFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setMedia("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setMedia(String(reader.result));
+    reader.readAsDataURL(file);
+  }
+
+  function onBannerFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setBanner("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setBanner(String(reader.result));
     reader.readAsDataURL(file);
   }
 
@@ -66,6 +97,14 @@ export default function TwitterCardPage() {
           Tek görsel olarak PNG indirir.
         </p>
 
+        <Field label="Görünüm">
+          <select value={variant} onChange={(e) => setVariant(e.target.value as TweetVariant)}>
+            <option value="tweet">Tweet</option>
+            <option value="repost">Repost</option>
+            <option value="profile">Profil</option>
+          </select>
+        </Field>
+
         <Field label="Avatar (görsel)">
           <input type="file" accept="image/*" onChange={onAvatarFile} />
         </Field>
@@ -74,12 +113,6 @@ export default function TwitterCardPage() {
         </Field>
         <Field label="Handle (@ olmadan)">
           <input value={handle} onChange={(e) => setHandle(e.target.value)} />
-        </Field>
-        <Field label="Tweet metni">
-          <textarea rows={6} value={tweet} onChange={(e) => setTweet(e.target.value)} />
-        </Field>
-        <Field label="Zaman damgası">
-          <input value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
         </Field>
         <Field label="Tema">
           <select value={theme} onChange={(e) => setTheme(e.target.value as TweetTheme)}>
@@ -98,6 +131,63 @@ export default function TwitterCardPage() {
           </label>
         </Field>
 
+        {variant !== "profile" ? (
+          <>
+            <Field label="Tweet metni">
+              <textarea rows={6} value={tweet} onChange={(e) => setTweet(e.target.value)} />
+            </Field>
+            <Field label="Zaman damgası">
+              <input value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
+            </Field>
+            <Field label="Tweet görseli (opsiyonel)">
+              <input type="file" accept="image/*" onChange={onMediaFile} />
+              {media ? (
+                <button
+                  onClick={() => setMedia("")}
+                  style={removeBtnStyle}
+                  type="button"
+                >
+                  Görseli kaldır
+                </button>
+              ) : null}
+            </Field>
+          </>
+        ) : null}
+
+        {variant === "repost" ? (
+          <Field label="Repostlayan kişi">
+            <input value={reposterName} onChange={(e) => setReposterName(e.target.value)} />
+          </Field>
+        ) : null}
+
+        {variant === "profile" ? (
+          <>
+            <Field label="Banner görseli">
+              <input type="file" accept="image/*" onChange={onBannerFile} />
+              {banner ? (
+                <button onClick={() => setBanner("")} style={removeBtnStyle} type="button">
+                  Banner'ı kaldır
+                </button>
+              ) : null}
+            </Field>
+            <Field label="Bio">
+              <textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+            </Field>
+            <Field label="Konum">
+              <input value={location} onChange={(e) => setLocation(e.target.value)} />
+            </Field>
+            <Field label="Katılma tarihi">
+              <input value={joinDate} onChange={(e) => setJoinDate(e.target.value)} />
+            </Field>
+            <Field label="Following">
+              <input value={following} onChange={(e) => setFollowing(e.target.value)} />
+            </Field>
+            <Field label="Followers">
+              <input value={followers} onChange={(e) => setFollowers(e.target.value)} />
+            </Field>
+          </>
+        ) : null}
+
         <button onClick={download} style={buttonStyle} type="button">
           PNG olarak indir
         </button>
@@ -107,13 +197,22 @@ export default function TwitterCardPage() {
       <section style={canvasStyle}>
         <div ref={cardRef}>
           <TweetCard
-            name={name}
-            handle={handle}
-            tweet={tweet}
-            timestamp={timestamp}
             avatar={avatar}
-            verified={verified}
+            banner={banner || undefined}
+            bio={bio}
+            followers={followers}
+            following={following}
+            handle={handle}
+            joinDate={joinDate}
+            location={location}
+            media={media || undefined}
+            name={name}
+            reposterName={reposterName}
             theme={theme}
+            timestamp={timestamp}
+            tweet={tweet}
+            variant={variant}
+            verified={verified}
           />
         </div>
       </section>
@@ -157,6 +256,16 @@ const canvasStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "center",
   padding: 24,
+};
+
+const removeBtnStyle: React.CSSProperties = {
+  background: "transparent",
+  border: "1px solid #783b3b",
+  borderRadius: 6,
+  color: "#ffb9b9",
+  fontSize: 12,
+  marginTop: 6,
+  padding: "4px 8px",
 };
 
 const buttonStyle: React.CSSProperties = {

@@ -5,7 +5,7 @@
 import { CSSProperties, ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import { toCanvas, toPng } from "html-to-image";
-import { TweetCard, TweetTheme } from "./components/TweetCard";
+import { TweetCard, TweetTheme, TweetVariant } from "./components/TweetCard";
 
 type BlockType =
   | "section"
@@ -372,9 +372,18 @@ function newBlock(type: BlockType, categoryId: string): Block {
           tweet: "Tweet metni buraya. @mention, #hashtag, link vurgulanır.",
           timestamp: "12:34 PM · 16 May 2026",
           imageUrl: "",
+          imageUrl2: "",
+          bannerUrl: "",
           verified: "true",
           theme: "dark",
           cardWidth: "560",
+          variant: "tweet",
+          reposterName: "Reposter",
+          bio: "Bio buraya. @mention, #hashtag, link vurgulanır.",
+          location: "İstanbul",
+          joinDate: "May 2020",
+          following: "128",
+          followers: "4,231",
         },
       };
     case "photostory":
@@ -1728,11 +1737,20 @@ function RenderedBlock({
         >
           <TweetCard
             avatar={block.fields.imageUrl || undefined}
+            banner={block.fields.bannerUrl || undefined}
+            bio={block.fields.bio}
+            followers={block.fields.followers}
+            following={block.fields.following}
             handle={block.fields.handle}
+            joinDate={block.fields.joinDate}
+            location={block.fields.location}
+            media={block.fields.imageUrl2 || undefined}
             name={block.fields.name}
+            reposterName={block.fields.reposterName}
             theme={(block.fields.theme as TweetTheme) || "dark"}
             timestamp={block.fields.timestamp}
             tweet={block.fields.tweet}
+            variant={(block.fields.variant as TweetVariant) || "tweet"}
             verified={block.fields.verified === "true"}
             width={Number(block.fields.cardWidth) || 560}
           />
@@ -2433,45 +2451,108 @@ function BlockEditor({
       ) : null}
 
       {block.type === "tweetcard" ? (
-        <div className="style-grid">
-          <TextInput
-            label="İsim"
-            value={block.fields.name}
-            onChange={(value) => onUpdateField("name", value)}
-          />
-          <TextInput
-            label="Handle"
-            value={block.fields.handle}
-            onChange={(value) => onUpdateField("handle", value)}
-          />
-          <TextArea
-            label="Tweet metni"
-            value={block.fields.tweet}
-            onChange={(value) => onUpdateField("tweet", value)}
-          />
-          <TextInput
-            label="Zaman"
-            value={block.fields.timestamp}
-            onChange={(value) => onUpdateField("timestamp", value)}
-          />
-          <SelectInput
-            label="Tema"
-            options={["dark", "light"]}
-            value={block.fields.theme}
-            onChange={(value) => onUpdateField("theme", value)}
-          />
-          <SelectInput
-            label="Verified"
-            options={["true", "false"]}
-            value={block.fields.verified}
-            onChange={(value) => onUpdateField("verified", value)}
-          />
-          <TextInput
-            label="Genişlik"
-            value={block.fields.cardWidth}
-            onChange={(value) => onUpdateField("cardWidth", value.replace(/[^\d]/g, ""))}
-          />
-        </div>
+        <>
+          <div className="style-grid">
+            <SelectInput
+              label="Görünüm"
+              options={["tweet", "repost", "profile"]}
+              value={block.fields.variant || "tweet"}
+              onChange={(value) => onUpdateField("variant", value)}
+            />
+            <SelectInput
+              label="Tema"
+              options={["dark", "light"]}
+              value={block.fields.theme}
+              onChange={(value) => onUpdateField("theme", value)}
+            />
+            <TextInput
+              label="İsim"
+              value={block.fields.name}
+              onChange={(value) => onUpdateField("name", value)}
+            />
+            <TextInput
+              label="Handle"
+              value={block.fields.handle}
+              onChange={(value) => onUpdateField("handle", value)}
+            />
+            <SelectInput
+              label="Verified"
+              options={["true", "false"]}
+              value={block.fields.verified}
+              onChange={(value) => onUpdateField("verified", value)}
+            />
+            <TextInput
+              label="Genişlik"
+              value={block.fields.cardWidth}
+              onChange={(value) => onUpdateField("cardWidth", value.replace(/[^\d]/g, ""))}
+            />
+          </div>
+
+          {block.fields.variant !== "profile" ? (
+            <div className="style-grid">
+              <TextArea
+                label="Tweet metni"
+                value={block.fields.tweet}
+                onChange={(value) => onUpdateField("tweet", value)}
+              />
+              <TextInput
+                label="Zaman"
+                value={block.fields.timestamp}
+                onChange={(value) => onUpdateField("timestamp", value)}
+              />
+            </div>
+          ) : null}
+
+          {block.fields.variant === "repost" ? (
+            <div className="style-grid">
+              <TextInput
+                label="Repostlayan"
+                value={block.fields.reposterName || ""}
+                onChange={(value) => onUpdateField("reposterName", value)}
+              />
+            </div>
+          ) : null}
+
+          {block.fields.variant === "profile" ? (
+            <>
+              <label className="file-control">
+                <span>Banner görseli yükle</span>
+                <input
+                  accept="image/*"
+                  onChange={(e) => onUploadImageToField("bannerUrl", e)}
+                  type="file"
+                />
+              </label>
+              <div className="style-grid">
+                <TextArea
+                  label="Bio"
+                  value={block.fields.bio || ""}
+                  onChange={(value) => onUpdateField("bio", value)}
+                />
+                <TextInput
+                  label="Konum"
+                  value={block.fields.location || ""}
+                  onChange={(value) => onUpdateField("location", value)}
+                />
+                <TextInput
+                  label="Katılma"
+                  value={block.fields.joinDate || ""}
+                  onChange={(value) => onUpdateField("joinDate", value)}
+                />
+                <TextInput
+                  label="Following"
+                  value={block.fields.following || ""}
+                  onChange={(value) => onUpdateField("following", value)}
+                />
+                <TextInput
+                  label="Followers"
+                  value={block.fields.followers || ""}
+                  onChange={(value) => onUpdateField("followers", value)}
+                />
+              </div>
+            </>
+          ) : null}
+        </>
       ) : null}
 
     </section>
