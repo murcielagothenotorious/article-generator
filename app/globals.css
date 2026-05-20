@@ -1060,7 +1060,6 @@ body.is-exporting .paragraph-toolbar {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: normal;
-  text-align: justify;
 }
 
 .article-text-block p.drop-cap::first-letter {

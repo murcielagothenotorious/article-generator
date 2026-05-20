@@ -1,0 +1,171 @@
+"use client";
+
+import { ChangeEvent, useRef, useState } from "react";
+import { toPng } from "html-to-image";
+import { TWEET_DEFAULT_AVATAR, TweetCard, TweetTheme } from "../components/TweetCard";
+
+export default function TwitterCardPage() {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [name, setName] = useState("Display Name");
+  const [handle, setHandle] = useState("handle");
+  const [verified, setVerified] = useState(true);
+  const [avatar, setAvatar] = useState(TWEET_DEFAULT_AVATAR);
+  const [tweet, setTweet] = useState(
+    "Tweet metni buraya. Linkler, #etiketler ve @bahsetmeler otomatik vurgulanır.",
+  );
+  const [timestamp, setTimestamp] = useState("12:34 PM · 16 May 2026");
+  const [theme, setTheme] = useState<TweetTheme>("dark");
+  const [status, setStatus] = useState("");
+
+  function onAvatarFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatar(String(reader.result));
+    reader.readAsDataURL(file);
+  }
+
+  async function download() {
+    if (!cardRef.current) return;
+    setStatus("PNG hazırlanıyor...");
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: Math.max(2, window.devicePixelRatio || 1),
+        cacheBust: true,
+        backgroundColor: theme === "dark" ? "#000000" : "#ffffff",
+      });
+      const link = document.createElement("a");
+      link.download = `tweet-${handle || "card"}.png`;
+      link.href = dataUrl;
+      link.click();
+      setStatus("İndirildi.");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "İndirilemedi.");
+    }
+  }
+
+  return (
+    <main style={pageStyle}>
+      <style>{`
+        .tc-panel input, .tc-panel textarea, .tc-panel select {
+          background: #0b0b0c;
+          border: 1px solid #2a2a2e;
+          border-radius: 6px;
+          color: #e7e9ea;
+          font: inherit;
+          padding: 8px 10px;
+          width: 100%;
+        }
+        .tc-panel textarea { resize: vertical; font-family: inherit; }
+        .tc-panel input[type="checkbox"] { width: auto; }
+        .tc-panel input[type="file"] { padding: 4px; }
+      `}</style>
+      <aside className="tc-panel" style={panelStyle}>
+        <h1 style={{ fontSize: 18, margin: "0 0 8px" }}>Tweet kartı</h1>
+        <p style={{ color: "#9aa0a6", fontSize: 13, margin: "0 0 16px" }}>
+          Tek görsel olarak PNG indirir.
+        </p>
+
+        <Field label="Avatar (görsel)">
+          <input type="file" accept="image/*" onChange={onAvatarFile} />
+        </Field>
+        <Field label="Display name">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Handle (@ olmadan)">
+          <input value={handle} onChange={(e) => setHandle(e.target.value)} />
+        </Field>
+        <Field label="Tweet metni">
+          <textarea rows={6} value={tweet} onChange={(e) => setTweet(e.target.value)} />
+        </Field>
+        <Field label="Zaman damgası">
+          <input value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
+        </Field>
+        <Field label="Tema">
+          <select value={theme} onChange={(e) => setTheme(e.target.value as TweetTheme)}>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </Field>
+        <Field label="">
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={verified}
+              onChange={(e) => setVerified(e.target.checked)}
+            />
+            Verified rozeti
+          </label>
+        </Field>
+
+        <button onClick={download} style={buttonStyle} type="button">
+          PNG olarak indir
+        </button>
+        <p style={{ color: "#9aa0a6", fontSize: 12, marginTop: 8 }}>{status}</p>
+      </aside>
+
+      <section style={canvasStyle}>
+        <div ref={cardRef}>
+          <TweetCard
+            name={name}
+            handle={handle}
+            tweet={tweet}
+            timestamp={timestamp}
+            avatar={avatar}
+            verified={verified}
+            theme={theme}
+          />
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "block", marginBottom: 12 }}>
+      {label ? (
+        <span style={{ color: "#9aa0a6", display: "block", fontSize: 12, marginBottom: 4 }}>
+          {label}
+        </span>
+      ) : null}
+      {children}
+    </label>
+  );
+}
+
+const pageStyle: React.CSSProperties = {
+  background: "#0b0b0c",
+  color: "#e7e9ea",
+  display: "grid",
+  gap: 24,
+  gridTemplateColumns: "320px 1fr",
+  minHeight: "100vh",
+  padding: 24,
+};
+
+const panelStyle: React.CSSProperties = {
+  background: "#141416",
+  border: "1px solid #2a2a2e",
+  borderRadius: 12,
+  padding: 16,
+  height: "fit-content",
+};
+
+const canvasStyle: React.CSSProperties = {
+  alignItems: "flex-start",
+  display: "flex",
+  justifyContent: "center",
+  padding: 24,
+};
+
+const buttonStyle: React.CSSProperties = {
+  background: "#1d9bf0",
+  border: 0,
+  borderRadius: 999,
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 700,
+  padding: "10px 16px",
+  width: "100%",
+};

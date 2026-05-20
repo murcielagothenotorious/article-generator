@@ -5,6 +5,7 @@
 import { CSSProperties, ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import { toCanvas, toPng } from "html-to-image";
+import { TweetCard, TweetTheme } from "./components/TweetCard";
 
 type BlockType =
   | "section"
@@ -20,7 +21,8 @@ type BlockType =
   | "authorcard"
   | "custom"
   | "photostory"
-  | "twocolumn";
+  | "twocolumn"
+  | "tweetcard";
 
 type Block = {
   id: string;
@@ -86,6 +88,7 @@ const blockCatalog: Array<{ type: BlockType; label: string; region: string }> = 
   { type: "photoquote", label: "Fotoğraf + alıntı", region: "Gövde" },
   { type: "authorcard", label: "Yazar kartı", region: "Gövde" },
   { type: "custom", label: "Özel div", region: "Gövde" },
+  { type: "tweetcard", label: "Tweet kartı", region: "Gövde" },
 ];
 
 const defaultSettings: ArticleSettings = {
@@ -357,6 +360,21 @@ function newBlock(type: BlockType, categoryId: string): Block {
         fields: {
           title: "Özel kutu",
           text: "Bu alan haber içinde serbest düzenlenebilir bir div olarak kullanılır.",
+        },
+      };
+    case "tweetcard":
+      return {
+        ...base,
+        label: "Yeni tweet kartı",
+        fields: {
+          name: "Display Name",
+          handle: "handle",
+          tweet: "Tweet metni buraya. @mention, #hashtag, link vurgulanır.",
+          timestamp: "12:34 PM · 16 May 2026",
+          imageUrl: "",
+          verified: "true",
+          theme: "dark",
+          cardWidth: "560",
         },
       };
     case "photostory":
@@ -1441,7 +1459,7 @@ function RenderedBlock({
     case "paragraph": {
       const paragraphStyle = {
         ...buildTextStyle(block.fields, { font: "Lora", size: 13, lineHeight: 1.65 }),
-        textAlign: block.fields.textAlign as CSSProperties["textAlign"],
+        textAlign: (block.fields.textAlign || "left") as CSSProperties["textAlign"],
       } satisfies CSSProperties;
       return (
         <div
@@ -1699,6 +1717,25 @@ function RenderedBlock({
             </figure>
             <p className="photostory-text">{block.fields.text}</p>
           </div>
+        </div>
+      );
+    case "tweetcard":
+      return (
+        <div
+          {...rootProps}
+          className={classNames(frameClass, "tweetcard-block", block.className)}
+          style={{ padding: "8px var(--page-padding, 36px) 0", display: "flex", justifyContent: "center" }}
+        >
+          <TweetCard
+            avatar={block.fields.imageUrl || undefined}
+            handle={block.fields.handle}
+            name={block.fields.name}
+            theme={(block.fields.theme as TweetTheme) || "dark"}
+            timestamp={block.fields.timestamp}
+            tweet={block.fields.tweet}
+            verified={block.fields.verified === "true"}
+            width={Number(block.fields.cardWidth) || 560}
+          />
         </div>
       );
     case "twocolumn":
@@ -2395,6 +2432,48 @@ function BlockEditor({
         </div>
       ) : null}
 
+      {block.type === "tweetcard" ? (
+        <div className="style-grid">
+          <TextInput
+            label="İsim"
+            value={block.fields.name}
+            onChange={(value) => onUpdateField("name", value)}
+          />
+          <TextInput
+            label="Handle"
+            value={block.fields.handle}
+            onChange={(value) => onUpdateField("handle", value)}
+          />
+          <TextArea
+            label="Tweet metni"
+            value={block.fields.tweet}
+            onChange={(value) => onUpdateField("tweet", value)}
+          />
+          <TextInput
+            label="Zaman"
+            value={block.fields.timestamp}
+            onChange={(value) => onUpdateField("timestamp", value)}
+          />
+          <SelectInput
+            label="Tema"
+            options={["dark", "light"]}
+            value={block.fields.theme}
+            onChange={(value) => onUpdateField("theme", value)}
+          />
+          <SelectInput
+            label="Verified"
+            options={["true", "false"]}
+            value={block.fields.verified}
+            onChange={(value) => onUpdateField("verified", value)}
+          />
+          <TextInput
+            label="Genişlik"
+            value={block.fields.cardWidth}
+            onChange={(value) => onUpdateField("cardWidth", value.replace(/[^\d]/g, ""))}
+          />
+        </div>
+      ) : null}
+
     </section>
   );
 }
@@ -2519,7 +2598,10 @@ function BlockTextToolbar({
           type="button"
           className={classNames("pt-btn", currentDropCap && "active")}
           title="Drop cap"
-          onClick={() => onUpdateField(block.id, "dropCap", currentDropCap ? "false" : "true")}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onUpdateField(block.id, "dropCap", currentDropCap ? "false" : "true");
+          }}
         >
           ¶
         </button>
@@ -2533,7 +2615,10 @@ function BlockTextToolbar({
               type="button"
               className={classNames("pt-btn", currentAlign === align && "active")}
               title={align}
-              onClick={() => onUpdateField(block.id, "textAlign", align)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onUpdateField(block.id, "textAlign", align);
+              }}
             >
               {align === "left" ? "⟸" : align === "center" ? "≡" : align === "right" ? "⟹" : "☰"}
             </button>
@@ -2545,7 +2630,10 @@ function BlockTextToolbar({
         type="button"
         className="pt-btn"
         title="Küçült"
-        onClick={() => onUpdateField(block.id, "fontSize", String(Math.max(6, currentSize - 1)))}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onUpdateField(block.id, "fontSize", String(Math.max(6, currentSize - 1)));
+        }}
       >
         −
       </button>
@@ -2554,7 +2642,10 @@ function BlockTextToolbar({
         type="button"
         className="pt-btn"
         title="Büyüt"
-        onClick={() => onUpdateField(block.id, "fontSize", String(currentSize + 1))}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onUpdateField(block.id, "fontSize", String(currentSize + 1));
+        }}
       >
         +
       </button>
