@@ -5,7 +5,14 @@
 import { CSSProperties, ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import { toCanvas, toPng } from "html-to-image";
-import { RepostStyle, TweetCard, TweetLang, TweetTheme, TweetVariant } from "./components/TweetCard";
+import {
+  RepostStyle,
+  TweetCard,
+  TweetLang,
+  TweetTheme,
+  TweetVariant,
+  formatTweetTimestamp,
+} from "./components/TweetCard";
 
 type BlockType =
   | "section"
@@ -370,7 +377,8 @@ function newBlock(type: BlockType, categoryId: string): Block {
           name: "Display Name",
           handle: "handle",
           tweet: "Tweet metni buraya. @mention, #hashtag, link vurgulanır.",
-          timestamp: "12:34 PM · 16 May 2026",
+          timestamp: "",
+          tweetDateTime: "2026-05-20T17:29",
           imageUrl: "",
           imageUrl2: "",
           bannerUrl: "",
@@ -391,6 +399,13 @@ function newBlock(type: BlockType, categoryId: string): Block {
           joinDate: "May 2020",
           following: "128",
           followers: "4,231",
+          showActions: "true",
+          relativeTime: "",
+          replies: "24",
+          reposts: "138",
+          likes: "1.2K",
+          views: "42.5K",
+          liked: "false",
         },
       };
     case "photostory":
@@ -1754,6 +1769,15 @@ function RenderedBlock({
             location={block.fields.location}
             media={block.fields.imageUrl2 || undefined}
             name={block.fields.name}
+            relativeTime={block.fields.relativeTime || undefined}
+            showActions={block.fields.showActions !== "false"}
+            stats={{
+              replies: block.fields.replies,
+              reposts: block.fields.reposts,
+              likes: block.fields.likes,
+              views: block.fields.views,
+              liked: block.fields.liked === "true",
+            }}
             repostStyle={(block.fields.repostStyle as RepostStyle) || "header"}
             reposterAvatar={block.fields.reposterAvatar || undefined}
             reposterHandle={block.fields.reposterHandle}
@@ -1762,7 +1786,14 @@ function RenderedBlock({
             reposterTweet={block.fields.reposterTweet}
             reposterVerified={block.fields.reposterVerified === "true"}
             theme={(block.fields.theme as TweetTheme) || "dark"}
-            timestamp={block.fields.timestamp}
+            timestamp={
+              block.fields.tweetDateTime
+                ? formatTweetTimestamp(
+                    block.fields.tweetDateTime,
+                    (block.fields.lang as TweetLang) || "tr",
+                  )
+                : block.fields.timestamp
+            }
             tweet={block.fields.tweet}
             variant={(block.fields.variant as TweetVariant) || "tweet"}
             verified={block.fields.verified === "true"}
@@ -2509,18 +2540,60 @@ function BlockEditor({
           </div>
 
           {block.fields.variant !== "profile" ? (
-            <div className="style-grid">
-              <TextArea
-                label="Tweet metni"
-                value={block.fields.tweet}
-                onChange={(value) => onUpdateField("tweet", value)}
-              />
-              <TextInput
-                label="Zaman"
-                value={block.fields.timestamp}
-                onChange={(value) => onUpdateField("timestamp", value)}
-              />
-            </div>
+            <>
+              <div className="style-grid">
+                <TextArea
+                  label="Tweet metni"
+                  value={block.fields.tweet}
+                  onChange={(value) => onUpdateField("tweet", value)}
+                />
+                <label className="field-control">
+                  <span>Tarih + saat</span>
+                  <input
+                    type="datetime-local"
+                    value={block.fields.tweetDateTime || ""}
+                    onChange={(e) => onUpdateField("tweetDateTime", e.target.value)}
+                  />
+                </label>
+                <TextInput
+                  label="Göreli zaman (örn. 57m)"
+                  value={block.fields.relativeTime || ""}
+                  onChange={(value) => onUpdateField("relativeTime", value)}
+                />
+                <SelectInput
+                  label="Etkileşim çubuğu"
+                  options={["true", "false"]}
+                  value={block.fields.showActions || "true"}
+                  onChange={(value) => onUpdateField("showActions", value)}
+                />
+                <SelectInput
+                  label="Beğenilmiş"
+                  options={["true", "false"]}
+                  value={block.fields.liked || "false"}
+                  onChange={(value) => onUpdateField("liked", value)}
+                />
+                <TextInput
+                  label="Yorum"
+                  value={block.fields.replies || ""}
+                  onChange={(value) => onUpdateField("replies", value)}
+                />
+                <TextInput
+                  label="Repost"
+                  value={block.fields.reposts || ""}
+                  onChange={(value) => onUpdateField("reposts", value)}
+                />
+                <TextInput
+                  label="Beğeni"
+                  value={block.fields.likes || ""}
+                  onChange={(value) => onUpdateField("likes", value)}
+                />
+                <TextInput
+                  label="Görüntülenme"
+                  value={block.fields.views || ""}
+                  onChange={(value) => onUpdateField("views", value)}
+                />
+              </div>
+            </>
           ) : null}
 
           {block.fields.variant === "repost" ? (

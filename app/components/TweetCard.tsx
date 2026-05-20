@@ -13,6 +13,7 @@ const TWEET_LABELS: Record<TweetLang, {
   joined: string;
   following: string;
   followers: string;
+  views: string;
 }> = {
   tr: {
     reposted: "yeniden paylaştı",
@@ -20,6 +21,7 @@ const TWEET_LABELS: Record<TweetLang, {
     joined: "Katıldı:",
     following: "Takip edilen",
     followers: "Takipçi",
+    views: "Görüntüleme",
   },
   en: {
     reposted: "reposted",
@@ -27,11 +29,34 @@ const TWEET_LABELS: Record<TweetLang, {
     joined: "Joined",
     following: "Following",
     followers: "Followers",
+    views: "Views",
   },
 };
 
 export function tweetLabels(lang: TweetLang) {
   return TWEET_LABELS[lang] ?? TWEET_LABELS.en;
+}
+
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+export function formatTweetTimestamp(input: string | Date, lang: TweetLang): string {
+  const date = input instanceof Date ? input : new Date(input);
+  if (isNaN(date.getTime())) return typeof input === "string" ? input : "";
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const hr12 = hours % 12 || 12;
+  const day = date.getDate();
+  const month = MONTH_NAMES[date.getMonth()];
+  const year = date.getFullYear();
+  if (lang === "tr") {
+    const period = hours < 12 ? "ÖÖ" : "ÖS";
+    return `${period} ${hr12}:${minutes} · ${day} ${month} ${year}`;
+  }
+  const period = hours < 12 ? "AM" : "PM";
+  return `${hr12}:${minutes} ${period} · ${month} ${day}, ${year}`;
 }
 
 export const TWEET_DEFAULT_AVATAR =
@@ -71,14 +96,130 @@ export function VerifiedBadge({ size = 18 }: { size?: number }) {
   );
 }
 
-function RepostIcon({ color }: { color: string }) {
+function RepostIcon({ color, size = 16 }: { color: string; size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width={16} height={16} aria-label="Repost">
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Repost">
       <path
         fill={color}
         d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"
       />
     </svg>
+  );
+}
+
+function MoreIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="More">
+      <circle cx="5" cy="12" r="2" fill={color} />
+      <circle cx="12" cy="12" r="2" fill={color} />
+      <circle cx="19" cy="12" r="2" fill={color} />
+    </svg>
+  );
+}
+
+function ReplyIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Reply">
+      <path
+        fill={color}
+        d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"
+      />
+    </svg>
+  );
+}
+
+function LikeIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Like">
+      <path
+        fill={color}
+        d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"
+      />
+    </svg>
+  );
+}
+
+function LikeFilledIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Liked">
+      <path
+        fill="#f91880"
+        d="M20.884 13.19c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"
+      />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Bookmark">
+      <path
+        fill={color}
+        d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"
+      />
+    </svg>
+  );
+}
+
+function ShareIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Share">
+      <path
+        fill={color}
+        d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41l-3.3 3.3-1.41-1.42L12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z"
+      />
+    </svg>
+  );
+}
+
+export type TweetStats = {
+  replies?: string;
+  reposts?: string;
+  likes?: string;
+  views?: string;
+  liked?: boolean;
+};
+
+function TweetActionBar({
+  stats,
+  theme,
+}: {
+  stats: TweetStats;
+  theme: TweetTheme;
+}) {
+  const tokens = tweetThemeTokens(theme);
+  const item: CSSProperties = {
+    alignItems: "center",
+    color: tokens.muted,
+    display: "flex",
+    fontSize: 13,
+    gap: 6,
+  };
+  return (
+    <div
+      style={{
+        alignItems: "center",
+        display: "flex",
+        justifyContent: "space-between",
+        marginTop: 10,
+      }}
+    >
+      <div style={item}>
+        <ReplyIcon color={tokens.muted} />
+      </div>
+      <div style={item}>
+        <RepostIcon color={tokens.muted} size={18} />
+      </div>
+      <div style={item}>
+        {stats.liked ? <LikeFilledIcon /> : <LikeIcon color={tokens.muted} />}
+      </div>
+      <div style={item}>
+        <BookmarkIcon color={tokens.muted} />
+      </div>
+      <div style={item}>
+        <ShareIcon color={tokens.muted} />
+      </div>
+    </div>
   );
 }
 
@@ -125,6 +266,10 @@ export function TweetCard({
   following,
   followers,
   lang = "en",
+  stats,
+  showActions = true,
+  relativeTime,
+  showMoreMenu = true,
 }: {
   name: string;
   handle: string;
@@ -151,6 +296,10 @@ export function TweetCard({
   joinDate?: string;
   following?: string;
   followers?: string;
+  stats?: TweetStats;
+  showActions?: boolean;
+  relativeTime?: string;
+  showMoreMenu?: boolean;
 }) {
   const tokens = tweetThemeTokens(theme);
   const labels = tweetLabels(lang);
@@ -160,6 +309,7 @@ export function TweetCard({
       <QuoteRepostCard
         avatar={avatar}
         handle={handle}
+        lang={lang}
         media={media}
         name={name}
         reposterAvatar={reposterAvatar}
@@ -168,6 +318,8 @@ export function TweetCard({
         reposterTimestamp={reposterTimestamp}
         reposterTweet={reposterTweet}
         reposterVerified={reposterVerified}
+        showActions={showActions}
+        stats={stats}
         style={style}
         theme={theme}
         timestamp={timestamp}
@@ -242,12 +394,15 @@ export function TweetCard({
           }}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontWeight: 700 }}>{name}</span>
-            {verified ? <VerifiedBadge /> : null}
+          <div style={{ alignItems: "center", display: "flex", gap: 4, justifyContent: "space-between" }}>
+            <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 4, minWidth: 0 }}>
+              <span style={{ fontWeight: 700 }}>{name}</span>
+              {verified ? <VerifiedBadge /> : null}
+            </div>
+            {showMoreMenu ? <MoreIcon color={tokens.muted} /> : null}
           </div>
           <div style={{ color: tokens.muted, fontSize: 15, lineHeight: 1.2 }}>
-            @{handle}
+            @{handle}{relativeTime ? ` · ${relativeTime}` : ""}
           </div>
         </div>
       </div>
@@ -278,17 +433,16 @@ export function TweetCard({
           />
         </div>
       ) : null}
-      <div
-        style={{
-          color: tokens.muted,
-          fontSize: 15,
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: `1px solid ${tokens.border}`,
-        }}
-      >
+      <div style={{ color: tokens.muted, fontSize: 15, marginTop: 12 }}>
         {timestamp}
+        {stats?.views ? (
+          <>
+            {" · "}
+            <strong style={{ color: tokens.text }}>{stats.views}</strong> {labels.views}
+          </>
+        ) : null}
       </div>
+      {showActions ? <TweetActionBar stats={stats ?? {}} theme={theme} /> : null}
     </div>
   );
 }
@@ -310,6 +464,9 @@ function QuoteRepostCard({
   reposterTweet,
   reposterTimestamp,
   reposterVerified,
+  stats,
+  showActions,
+  lang = "en",
 }: {
   name: string;
   handle: string;
@@ -327,7 +484,11 @@ function QuoteRepostCard({
   reposterTweet?: string;
   reposterTimestamp?: string;
   reposterVerified?: boolean;
+  stats?: TweetStats;
+  showActions?: boolean;
+  lang?: TweetLang;
 }) {
+  const labels = tweetLabels(lang);
   const tokens = tweetThemeTokens(theme);
 
   return (
@@ -423,17 +584,17 @@ function QuoteRepostCard({
         ) : null}
       </div>
 
-      <div
-        style={{
-          color: tokens.muted,
-          fontSize: 15,
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: `1px solid ${tokens.border}`,
-        }}
-      >
+      <div style={{ color: tokens.muted, fontSize: 15, marginTop: 12 }}>
         {reposterTimestamp || timestamp}
+        {stats?.views ? (
+          <>
+            {" · "}
+            <strong style={{ color: tokens.text }}>{stats.views}</strong>{" "}
+            {labels.views}
+          </>
+        ) : null}
       </div>
+      {showActions ? <TweetActionBar stats={stats ?? {}} theme={theme} /> : null}
     </div>
   );
 }

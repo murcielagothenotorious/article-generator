@@ -9,7 +9,16 @@ import {
   TweetLang,
   TweetTheme,
   TweetVariant,
+  formatTweetTimestamp,
 } from "../components/TweetCard";
+
+type StatsState = {
+  replies: string;
+  reposts: string;
+  likes: string;
+  views: string;
+  liked: boolean;
+};
 
 export default function TwitterCardPage() {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -35,9 +44,21 @@ export default function TwitterCardPage() {
   const [tweet, setTweet] = useState(
     "Tweet metni buraya. Linkler, #etiketler ve @bahsetmeler otomatik vurgulanır.",
   );
-  const [timestamp, setTimestamp] = useState("12:34 PM · 16 May 2026");
+  const [tweetDateTime, setTweetDateTime] = useState("2026-05-20T17:29");
+  const [relativeTime, setRelativeTime] = useState("");
   const [theme, setTheme] = useState<TweetTheme>("dark");
   const [lang, setLang] = useState<TweetLang>("tr");
+  const timestamp = formatTweetTimestamp(tweetDateTime, lang);
+  const [showActions, setShowActions] = useState(true);
+  const [stats, setStats] = useState<StatsState>({
+    replies: "24",
+    reposts: "138",
+    likes: "1.2K",
+    views: "42.5K",
+    liked: false,
+  });
+  const setStat = (k: keyof StatsState, v: string | boolean) =>
+    setStats((current) => ({ ...current, [k]: v }));
   const [status, setStatus] = useState("");
 
   function onAvatarFile(e: ChangeEvent<HTMLInputElement>) {
@@ -161,11 +182,66 @@ export default function TwitterCardPage() {
 
         {variant !== "profile" ? (
           <>
+            <Field label="">
+              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={showActions}
+                  onChange={(e) => setShowActions(e.target.checked)}
+                />
+                Etkileşim çubuğunu göster
+              </label>
+            </Field>
+            {showActions ? (
+              <>
+                <Field label="Yorum sayısı">
+                  <input value={stats.replies} onChange={(e) => setStat("replies", e.target.value)} />
+                </Field>
+                <Field label="Repost sayısı">
+                  <input value={stats.reposts} onChange={(e) => setStat("reposts", e.target.value)} />
+                </Field>
+                <Field label="Beğeni sayısı">
+                  <input value={stats.likes} onChange={(e) => setStat("likes", e.target.value)} />
+                </Field>
+                <Field label="Görüntülenme">
+                  <input value={stats.views} onChange={(e) => setStat("views", e.target.value)} />
+                </Field>
+                <Field label="">
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={stats.liked}
+                      onChange={(e) => setStat("liked", e.target.checked)}
+                    />
+                    Beğenilmiş (kalp dolu/pembe)
+                  </label>
+                </Field>
+              </>
+            ) : null}
+          </>
+        ) : null}
+
+        {variant !== "profile" ? (
+          <>
             <Field label="Tweet metni">
               <textarea rows={6} value={tweet} onChange={(e) => setTweet(e.target.value)} />
             </Field>
-            <Field label="Zaman damgası">
-              <input value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
+            <Field label="Tarih ve saat (alt satır)">
+              <input
+                type="datetime-local"
+                value={tweetDateTime}
+                onChange={(e) => setTweetDateTime(e.target.value)}
+              />
+              <span style={{ color: "#9aa0a6", fontSize: 11, marginTop: 4, display: "block" }}>
+                Önizleme: {timestamp}
+              </span>
+            </Field>
+            <Field label="Göreli zaman (handle yanı, opsiyonel)">
+              <input
+                placeholder="örn: 57m, 2h, Oct 22"
+                value={relativeTime}
+                onChange={(e) => setRelativeTime(e.target.value)}
+              />
             </Field>
             <Field label="Tweet görseli (opsiyonel)">
               <input type="file" accept="image/*" onChange={onMediaFile} />
@@ -283,6 +359,9 @@ export default function TwitterCardPage() {
             location={location}
             media={media || undefined}
             name={name}
+            relativeTime={relativeTime}
+            showActions={showActions}
+            stats={stats}
             repostStyle={repostStyle}
             reposterAvatar={reposterAvatar}
             reposterHandle={reposterHandle}
