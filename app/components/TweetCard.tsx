@@ -183,17 +183,20 @@ export type TweetStats = {
 function TweetActionBar({
   stats,
   theme,
+  scale = 1,
 }: {
   stats: TweetStats;
   theme: TweetTheme;
+  scale?: number;
 }) {
   const tokens = tweetThemeTokens(theme);
+  const iconSize = 18 * scale;
   const item: CSSProperties = {
     alignItems: "center",
     color: tokens.muted,
     display: "flex",
-    fontSize: 13,
-    gap: 6,
+    fontSize: 13 * scale,
+    gap: 6 * scale,
   };
   return (
     <div
@@ -201,28 +204,28 @@ function TweetActionBar({
         alignItems: "center",
         display: "flex",
         justifyContent: "space-between",
-        marginTop: 10,
+        marginTop: 10 * scale,
       }}
     >
       <div style={item}>
-        <ReplyIcon color={tokens.muted} />
+        <ReplyIcon color={tokens.muted} size={iconSize} />
         {stats.replies ? <span>{stats.replies}</span> : null}
       </div>
       <div style={item}>
-        <RepostIcon color={tokens.muted} size={18} />
+        <RepostIcon color={tokens.muted} size={iconSize} />
         {stats.reposts ? <span>{stats.reposts}</span> : null}
       </div>
       <div style={item}>
-        {stats.liked ? <LikeFilledIcon /> : <LikeIcon color={tokens.muted} />}
+        {stats.liked ? <LikeFilledIcon size={iconSize} /> : <LikeIcon color={tokens.muted} size={iconSize} />}
         {stats.likes ? (
           <span style={{ color: stats.liked ? "#f91880" : tokens.muted }}>{stats.likes}</span>
         ) : null}
       </div>
       <div style={item}>
-        <BookmarkIcon color={tokens.muted} />
+        <BookmarkIcon color={tokens.muted} size={iconSize} />
       </div>
       <div style={item}>
-        <ShareIcon color={tokens.muted} />
+        <ShareIcon color={tokens.muted} size={iconSize} />
       </div>
     </div>
   );
@@ -275,6 +278,7 @@ export function TweetCard({
   showActions = true,
   relativeTime,
   showMoreMenu = true,
+  scale = 1,
 }: {
   name: string;
   handle: string;
@@ -305,6 +309,7 @@ export function TweetCard({
   showActions?: boolean;
   relativeTime?: string;
   showMoreMenu?: boolean;
+  scale?: number;
 }) {
   const tokens = tweetThemeTokens(theme);
   const labels = tweetLabels(lang);
@@ -317,6 +322,7 @@ export function TweetCard({
         lang={lang}
         media={media}
         name={name}
+        scale={scale}
         reposterAvatar={reposterAvatar}
         reposterHandle={reposterHandle}
         reposterName={reposterName || name}
@@ -364,7 +370,8 @@ export function TweetCard({
         borderRadius: 16,
         color: tokens.text,
         fontFamily: FONT_STACK,
-        padding: 16,
+        overflow: "hidden",
+        padding: 16 * scale,
         width,
         ...style,
       }}
@@ -375,47 +382,47 @@ export function TweetCard({
             alignItems: "center",
             color: tokens.muted,
             display: "flex",
-            fontSize: 13,
+            fontSize: 13 * scale,
             fontWeight: 700,
-            gap: 8,
-            marginBottom: 8,
-            paddingLeft: 24,
+            gap: 8 * scale,
+            marginBottom: 8 * scale,
+            paddingLeft: 24 * scale,
           }}
         >
-          <RepostIcon color={tokens.muted} />
+          <RepostIcon color={tokens.muted} size={16 * scale} />
           <span>{reposterName || name} {labels.reposted}</span>
         </div>
       ) : null}
-      <div style={{ display: "flex", gap: 12 }}>
+      <div style={{ display: "flex", gap: 12 * scale }}>
         <img
           alt=""
           src={avatar || TWEET_DEFAULT_AVATAR}
           style={{
             borderRadius: "50%",
             flex: "0 0 auto",
-            height: 48,
+            height: 48 * scale,
             objectFit: "cover",
-            width: 48,
+            width: 48 * scale,
           }}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ alignItems: "center", display: "flex", gap: 4, justifyContent: "space-between" }}>
-            <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 4, minWidth: 0 }}>
-              <span style={{ fontWeight: 700 }}>{name}</span>
-              {verified ? <VerifiedBadge /> : null}
+          <div style={{ alignItems: "center", display: "flex", gap: 4 * scale, justifyContent: "space-between" }}>
+            <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 4 * scale, minWidth: 0 }}>
+              <span style={{ fontWeight: 700, fontSize: 17 * scale }}>{name}</span>
+              {verified ? <VerifiedBadge size={18 * scale} /> : null}
             </div>
-            {showMoreMenu ? <MoreIcon color={tokens.muted} /> : null}
+            {showMoreMenu ? <MoreIcon color={tokens.muted} size={18 * scale} /> : null}
           </div>
-          <div style={{ color: tokens.muted, fontSize: 15, lineHeight: 1.2 }}>
+          <div style={{ color: tokens.muted, fontSize: 15 * scale, lineHeight: 1.2 }}>
             @{handle}{relativeTime ? ` · ${relativeTime}` : ""}
           </div>
         </div>
       </div>
       <div
         style={{
-          fontSize: 17,
+          fontSize: 17 * scale,
           lineHeight: 1.4,
-          marginTop: 12,
+          marginTop: 12 * scale,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
         }}
@@ -427,18 +434,18 @@ export function TweetCard({
           style={{
             border: `1px solid ${tokens.border}`,
             borderRadius: 16,
-            marginTop: 12,
+            marginTop: 12 * scale,
             overflow: "hidden",
           }}
         >
           <img
             alt=""
             src={media}
-            style={{ display: "block", maxHeight: 510, objectFit: "cover", width: "100%" }}
+            style={{ display: "block", maxHeight: 510 * scale, objectFit: "cover", width: "100%" }}
           />
         </div>
       ) : null}
-      <div style={{ color: tokens.muted, fontSize: 15, marginTop: 12 }}>
+      <div style={{ color: tokens.muted, fontSize: 15 * scale, marginTop: 12 * scale }}>
         {timestamp}
         {stats?.views ? (
           <>
@@ -447,7 +454,7 @@ export function TweetCard({
           </>
         ) : null}
       </div>
-      {showActions ? <TweetActionBar stats={stats ?? {}} theme={theme} /> : null}
+      {showActions ? <TweetActionBar scale={scale} stats={stats ?? {}} theme={theme} /> : null}
     </div>
   );
 }
@@ -472,6 +479,7 @@ function QuoteRepostCard({
   stats,
   showActions,
   lang = "en",
+  scale = 1,
 }: {
   name: string;
   handle: string;
@@ -492,6 +500,7 @@ function QuoteRepostCard({
   stats?: TweetStats;
   showActions?: boolean;
   lang?: TweetLang;
+  scale?: number;
 }) {
   const labels = tweetLabels(lang);
   const tokens = tweetThemeTokens(theme);
@@ -504,6 +513,7 @@ function QuoteRepostCard({
         borderRadius: 16,
         color: tokens.text,
         fontFamily: FONT_STACK,
+        overflow: "hidden",
         padding: 16,
         width,
         ...style,
@@ -599,7 +609,7 @@ function QuoteRepostCard({
           </>
         ) : null}
       </div>
-      {showActions ? <TweetActionBar stats={stats ?? {}} theme={theme} /> : null}
+      {showActions ? <TweetActionBar scale={scale} stats={stats ?? {}} theme={theme} /> : null}
     </div>
   );
 }

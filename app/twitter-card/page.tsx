@@ -60,6 +60,16 @@ export default function TwitterCardPage() {
   const setStat = (k: keyof StatsState, v: string | boolean) =>
     setStats((current) => ({ ...current, [k]: v }));
   const [status, setStatus] = useState("");
+  const [exportSize, setExportSize] = useState<"card" | "iphone" | "iphoneL" | "android" | "square">("iphone");
+
+  const exportPresets: Record<string, { width: number; height: number; label: string }> = {
+    card: { width: 0, height: 0, label: "Sadece kart (varsayılan)" },
+    iphone: { width: 1170, height: 2532, label: "iPhone dikey (1170×2532)" },
+    iphoneL: { width: 2532, height: 1170, label: "iPhone yatay (2532×1170)" },
+    android: { width: 1080, height: 2400, label: "Android dikey (1080×2400)" },
+    square: { width: 1080, height: 1080, label: "Kare (1080×1080)" },
+  };
+  const preset = exportPresets[exportSize];
 
   function onAvatarFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -106,7 +116,7 @@ export default function TwitterCardPage() {
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: Math.max(2, window.devicePixelRatio || 1),
         cacheBust: true,
-        backgroundColor: theme === "dark" ? "#000000" : "#ffffff",
+        backgroundColor: undefined,
       });
       const link = document.createElement("a");
       link.download = `tweet-${handle || "card"}.png`;
@@ -169,6 +179,18 @@ export default function TwitterCardPage() {
             <option value="en">English</option>
           </select>
         </Field>
+        <Field label="PNG çıktı boyutu">
+          <select
+            value={exportSize}
+            onChange={(e) => setExportSize(e.target.value as typeof exportSize)}
+          >
+            {Object.entries(exportPresets).map(([key, p]) => (
+              <option key={key} value={key}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="">
           <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
             <input
@@ -197,7 +219,7 @@ export default function TwitterCardPage() {
                 <Field label="Yorum sayısı">
                   <input value={stats.replies} onChange={(e) => setStat("replies", e.target.value)} />
                 </Field>
-                <Field label="Repost sayısı">
+                <Field label="Repost / Retweet sayısı">
                   <input value={stats.reposts} onChange={(e) => setStat("reposts", e.target.value)} />
                 </Field>
                 <Field label="Beğeni sayısı">
@@ -348,6 +370,12 @@ export default function TwitterCardPage() {
       <section style={canvasStyle}>
         <div ref={cardRef}>
           <TweetCard
+            scale={preset.width ? Math.max(1, preset.width / 560) : 1}
+            style={
+              preset.width
+                ? { border: "none", borderRadius: 0, width: preset.width }
+                : undefined
+            }
             avatar={avatar}
             banner={banner || undefined}
             bio={bio}
@@ -416,6 +444,7 @@ const canvasStyle: React.CSSProperties = {
   alignItems: "flex-start",
   display: "flex",
   justifyContent: "center",
+  overflow: "auto",
   padding: 24,
 };
 
